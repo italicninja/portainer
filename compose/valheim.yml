@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  valheim-server:
+    image: lloesche/valheim-server
+    container_name: valheim-server
+    cap_add:
+      - SYS_NICE
+    stop_grace_period: 120s
+    ports:
+      - "2456-2457:2456-2457/udp"
+    volumes:
+      - "$HOME/valheim-server/config:/config"
+      - "$HOME/valheim-server/data:/opt/valheim"
+    environment:
+      - SERVER_NAME=SSFriendshipFrostholm
+      - WORLD_NAME=Frostholm
+    restart: unless-stopped
