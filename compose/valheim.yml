@@ -16,4 +16,5 @@ services:
       - SERVER_NAME=SSFriendshipFrostholm
       - WORLD_NAME=Frostholm
       - SERVER_PASS=${SERVER_PASS}
+      - POST_BACKUP_HOOK='timeout 300 scp @BACKUP_FILE@ /backup/valheim/$(basename @BACKUP_FILE@)'
     restart: unless-stopped
