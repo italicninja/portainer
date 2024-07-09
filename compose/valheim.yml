@@ -10,8 +10,8 @@ services:
     ports:
       - "2456-2457:2456-2457/udp"
     volumes:
-      - "/data/valheim-server/config:/config"
-      - "/data/valheim-server/data:/opt/valheim"
+      - /data/valheim-server/config:/config
+      - /data/valheim-server/data:/opt/valheim
     environment:
       - SERVER_NAME=SSFriendshipFrostholm
       - WORLD_NAME=Frostholm
