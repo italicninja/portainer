@@ -10,25 +10,11 @@ services:
     ports:
       - "2456-2457:2456-2457/udp"
     volumes:
-      - valheim-config:/config
-      - valheim-data:/opt/valheim
+      - /data/valheim-server/config:/config
+      - /data/valheim-server/data:/opt/valheim
     environment:
       - SERVER_NAME=SSFriendshipFrostholm
       - WORLD_NAME=Frostholm
       - SERVER_PASS=${SERVER_PASS}
       - POST_BACKUP_HOOK='timeout 300 scp @BACKUP_FILE@ /backup/valheim/$(basename @BACKUP_FILE@)'
     restart: unless-stopped
-
-volumes:
-  valheim-config:
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: '/data/valheim-server/config'
-  valheim-data:
-    driver: local
-    driver_opts:
-      type: 'none'
-      o: 'bind'
-      device: '/data/valheim-server/data'
