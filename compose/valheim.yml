@@ -15,4 +15,5 @@ services:
     environment:
       - SERVER_NAME=SSFriendshipFrostholm
       - WORLD_NAME=Frostholm
+      - SERVER_PASS=$SERVER_PASS
     restart: unless-stopped
