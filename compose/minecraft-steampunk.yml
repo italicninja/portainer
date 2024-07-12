@@ -10,7 +10,7 @@ services:
       DEBUG: "${DEBUG:-false}"
       VERSION: ${VERSION:-1.19.2}
       FORGE_VERSION: ${FORGE_VERSION:-43.4.0}
-      MODPACK: https://mediafilez.forgecdn.net/files/5480/858/SteamPunk_LPS_v24_serverpack.zip
+      GENERIC_PACK: https://mediafilez.forgecdn.net/files/5480/858/SteamPunk_LPS_v24_serverpack.zip
       REMOVE_OLD_MODS: "${REMOVE_OLD_MODS:-false}"
       
     ports:
