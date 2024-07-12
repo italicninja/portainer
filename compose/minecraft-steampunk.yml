@@ -6,7 +6,6 @@ services:
     volumes:
       - /data/minecraft-steampunk:/data
       - /data/minecraft/modpacks:/modpacks:ro
-    stop_grace_period: 120s
     environment:
       EULA: "true"
       MOD_PLATFORM: AUTO_CURSEFORGE
@@ -29,7 +28,6 @@ services:
         /pregen start 200
     ports:
       - "25565:25565/udp"
-    restart: unless-stopped
 
 volumes:
   data: {}
