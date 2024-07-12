@@ -14,6 +14,7 @@ services:
       CF_API_KEY: ${CF_API_KEY}
       FORGE_VERSION: ${FORGE_VERSION:-43.4.0}
       CF_SLUG: steam-punk
+      CURSEFORGE_FILES: ftb-backups-2
       INIT_MEMORY: 8G
       MAX_MEMORY: 16G
       USE_AIKAR_FLAGS: true
