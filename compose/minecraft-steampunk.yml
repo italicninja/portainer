@@ -25,9 +25,6 @@ services:
       RCON_CMDS_LAST_DISCONNECT: |-
         /kill @e[type=minecraft:boat]
         /pregen start 200
-    deploy:
-      limits:
-        memory: 16G
     ports:
       - "25565:25565"
 
