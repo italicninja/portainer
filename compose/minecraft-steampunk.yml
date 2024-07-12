@@ -22,13 +22,11 @@ services:
       LEVEL: world
       RCON_PASSWORD: ${RCON_PASSWORD}
       RCON_CMDS_STARTUP:  |-
-        /pregen start 200
         /gamerule doFireTick false
       RCON_CMDS_FIRST_CONNECT: |-
         /pregen stop
       RCON_CMDS_LAST_DISCONNECT: |-
         /kill @e[type=minecraft:boat]
-        /pregen start 200
     ports:
       - "25565:25565"
       - "127.0.0.1:25575:25575"
