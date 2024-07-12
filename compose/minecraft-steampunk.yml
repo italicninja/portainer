@@ -6,13 +6,29 @@ services:
     - /data/minecraft/modpacks:/modpacks:ro
     environment:
       EULA: "true"
+      MOTD: "A §l§cMinecraft§r §nserver"
       TYPE: FORGE
       DEBUG: "${DEBUG:-false}"
       VERSION: ${VERSION:-1.19.2}
       FORGE_VERSION: ${FORGE_VERSION:-43.4.0}
       GENERIC_PACK: https://mediafilez.forgecdn.net/files/5480/858/SteamPunk_LPS_v24_serverpack.zip
       REMOVE_OLD_MODS: "${REMOVE_OLD_MODS:-false}"
-      
+      INIT_MEMORY: 8G
+      MAX_MEMORY: 16G
+      USE_AIKAR_FLAGS: true
+      MOTD: Running %MODPACK_NAME% version %env:MODPACK_VERSION%
+      LEVEL: world-%date:yyyy-MM-dd%
+      RCON_CMDS_STARTUP:  |-
+        /pregen start 200
+        /gamerule doFireTick false
+      RCON_CMDS_FIRST_CONNECT: |-
+        /pregen stop
+      RCON_CMDS_LAST_DISCONNECT: |-
+        /kill @e[type=minecraft:boat]
+        /pregen start 200
+    deploy:
+      limits:
+        memory: 16G
     ports:
       - "25565:25565"
 
