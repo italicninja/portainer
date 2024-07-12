@@ -6,7 +6,6 @@ services:
     - /data/minecraft/modpacks:/modpacks:ro
     environment:
       EULA: "true"
-      MOTD: "A §l§cMinecraft§r §nserver"
       TYPE: FORGE
       DEBUG: "${DEBUG:-false}"
       VERSION: ${VERSION:-1.19.2}
