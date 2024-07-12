@@ -30,6 +30,7 @@ services:
         /pregen start 200
     ports:
       - "25565:25565"
+      - "25575:25575"
 
 volumes:
   data: {}
