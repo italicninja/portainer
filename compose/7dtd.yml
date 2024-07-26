@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+  7dtd:
+    image: vinanrra/7dtd-server:latest
+    volumes:
+      - /data/7DaysToDie:/home/sdtdserver/.local/share/7DaysToDie/
+      - /data/7DaysToDie/serverfiles:/home/sdtdserver/serverfiles/
+      - /data/7DaysToDie/log:/home/sdtdserver/log/
+      - /data/7DaysToDie/backup:/home/sdtdserver/lgsm/backup/
+      - /data/7DaysToDie/lgsm-config:/home/sdtdserver/lgsm/config-lgsm/sdtdserver/
+    ports:
+      - 26900:26900/tcp 	#Default 7DaysToDie port required
+      - 26900:26900/udp 	#Default 7DaysToDie port required
+      - 26901:26901/udp 	#Default 7DaysToDie port required
+      - 26902:26902/udp 	#Default 7DaysToDie port required
+      - 8080:8080/tcp 	  #Default 7DaysToDie webadmin port optional, if you use webadmin remember to change password in /path/to/ServerFiles/sdtdserver.xml
+      - 8081:8081/tcp 	  #Default 7DaysToDie telnet port optional
+      - 8082:8082/tcp   	#Default Alloc Fixes Map GUI webserver port optional
+    environment:
+      VERSION: stable
+      BACKUP_HOUR: 21
+      BACKUP_MAX: 24
+      BACKUP: YES
