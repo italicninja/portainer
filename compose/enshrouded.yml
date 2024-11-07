@@ -8,12 +8,12 @@ services:
       - "15636:15636/udp"
       - "15637:15637/udp"
     environment:
-      - SERVER_NAME: SS Enshrouded
-      - SERVER_PASSWORD: ${SERVER_PASSWORD}
-      - GAME_PORT: 15636
-      - QUERY_PORT: 15637
-      - SERVER_SLOTS: 8
-      - SERVER_IP: 0.0.0.0
+      - SERVER_NAME=SS Enshrouded
+      - SERVER_PASSWORD=${SERVER_PASSWORD}
+      - GAME_PORT=15636
+      - QUERY_PORT=15637
+      - SERVER_SLOTS=8
+      - SERVER_IP=0.0.0.0
     volumes:
       - /data/enshrouded-persistent-data:/home/steam/enshrouded/savegame
     restart: unless-stopped
