@@ -1,0 +1,22 @@
+version: "3"
+services:
+  icarus:
+    image: mornedhels/icarus-server:latest
+    container_name: icarus
+    hostname: icarus
+    restart: unless-stopped
+    stop_grace_period: 90s
+    ports:
+      - "17777:17777/udp"
+      - "27015:27015/udp"
+    volumes:
+      - /data/icarus/home:/home/icarus/drive_c/icarus
+      - /data/icarus/game:/opt/icarus
+    environment:
+      - SERVER_NAME=SS ICARUS
+      - SERVER_PASSWORD=${SERVER_PASSWORD}
+      - SERVER_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SERVER_PORT=17777
+      - SERVER_QUERYPORT=27015
+      - PUID=4711
+      - PGID=4711
