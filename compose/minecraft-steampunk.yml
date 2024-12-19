@@ -10,9 +10,9 @@ services:
       EULA: "true"
       MOD_PLATFORM: AUTO_CURSEFORGE
       DEBUG: "${DEBUG:-false}"
-      VERSION: ${VERSION:-1.19.2}
+      VERSION: ${VERSION:-1.20.1}
       CF_API_KEY: ${CF_API_KEY}
-      FORGE_VERSION: ${FORGE_VERSION:-43.4.0}
+      FORGE_VERSION: ${FORGE_VERSION:-47.3.10}
       CF_SLUG: steam-punk
       CURSEFORGE_FILES: ftb-backups-2,polylib
       INIT_MEMORY: 8G
