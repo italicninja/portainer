@@ -14,6 +14,7 @@ services:
       CF_API_KEY: ${CF_API_KEY}
       FORGE_VERSION: ${FORGE_VERSION:-40.2.17}
       CF_SLUG: dawn-craft
+      CF_EXCLUDE_MODS: compasscoords
       #CURSEFORGE_FILES: ftb-backups-2,polylib,iceberg
       INIT_MEMORY: 8G
       MAX_MEMORY: 16G
