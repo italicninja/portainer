@@ -21,7 +21,7 @@ services:
       MAX_MEMORY: 16G
       USE_AIKAR_FLAGS: true
       MOTD: Running %MODPACK_NAME% version %env:MODPACK_VERSION%
-      LEVEL: ../minecraft-worlds/dawncraft-world
+      LEVEL: /data/minecraft-worlds/dawncraft-world
       RCON_PASSWORD: ${RCON_PASSWORD}
       RCON_CMDS_STARTUP:  |-
         /gamerule doFireTick false
