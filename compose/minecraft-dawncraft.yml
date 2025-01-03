@@ -15,7 +15,7 @@ services:
       FORGE_VERSION: ${FORGE_VERSION:-40.2.17}
       CF_SLUG: dawn-craft
       CF_EXCLUDE_MODS: 368398
-      CURSEFORGE_FILES: ftb-backups-2,polylib,iceberg,nether-skeletons
+      CURSEFORGE_FILES: ftb-backups-2,polylib,iceberg,nether-skeletons:4409036
       CF_FORCE_SYNCHRONIZE: true
       INIT_MEMORY: 8G
       MAX_MEMORY: 16G
