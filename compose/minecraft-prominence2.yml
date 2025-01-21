@@ -12,10 +12,10 @@ services:
       DEBUG: "${DEBUG:-false}"
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: prominence-2-rpg
-      CURSEFORGE_FILES: luna
+      CURSEFORGE_FILES: luna,chunky-pregenerator
       CF_FORCE_SYNCHRONIZE: true
       INIT_MEMORY: 8G
-      MAX_MEMORY: 16G
+      MAX_MEMORY: 24G
       USE_AIKAR_FLAGS: true
       MOTD: Running %MODPACK_NAME% version %env:MODPACK_VERSION%
       LEVEL: prominence2-world
@@ -23,10 +23,13 @@ services:
       RCON_PASSWORD: ${RCON_PASSWORD}
       RCON_CMDS_STARTUP:  |-
         /gamerule doFireTick false
+        /chunky radius 1000
+        /chunky start
       RCON_CMDS_FIRST_CONNECT: |-
-        /pregen stop
+        /chunky pause
       RCON_CMDS_LAST_DISCONNECT: |-
         /kill @e[type=minecraft:boat]
+        /chunky continue
     ports:
       - "25565:25565"
       - "127.0.0.1:25575:25575"
