@@ -23,6 +23,7 @@ services:
       RCON_PASSWORD: ${RCON_PASSWORD}
       CUSTOM_SERVER_PROPERTIES: |-
         allow-flight=true
+        spawn-protection=false
       RCON_CMDS_STARTUP:  |-
         /gamerule doFireTick false
         /gamerule mobGriefing false
