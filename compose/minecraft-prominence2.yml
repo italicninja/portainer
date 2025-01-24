@@ -21,10 +21,11 @@ services:
       LEVEL: prominence2-world
       LEVEL_TYPE: minecraft:large_biomes
       RCON_PASSWORD: ${RCON_PASSWORD}
+      CUSTOM_SERVER_PROPERTIES: |-
+        allow-flight=true
       RCON_CMDS_STARTUP:  |-
         /gamerule doFireTick false
-        /chunky radius 1000
-        /chunky start
+        /gamerule mobGriefing false
       RCON_CMDS_FIRST_CONNECT: |-
         /chunky pause
       RCON_CMDS_LAST_DISCONNECT: |-
