@@ -12,7 +12,7 @@ services:
       DEBUG: "${DEBUG:-false}"
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: prominence-2-rpg
-      CURSEFORGE_FILES: luna,chunky-pregenerator, textile-backup, cloth-config, modmenu
+      CURSEFORGE_FILES: luna,chunky-pregenerator, textile-backup, cloth-config, modmenu, fancymenu
       CF_FORCE_SYNCHRONIZE: true
       INIT_MEMORY: 8G
       MAX_MEMORY: 24G
@@ -30,7 +30,6 @@ services:
       RCON_CMDS_FIRST_CONNECT: |-
         /chunky pause
       RCON_CMDS_LAST_DISCONNECT: |-
-        /kill @e[type=minecraft:boat]
         /chunky continue
     ports:
       - "25565:25565"
