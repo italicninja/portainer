@@ -20,21 +20,8 @@ services:
       PROXY_LOCATION: pihole
       VIRTUAL_HOST: pihole.pixelpaladin.lan
       VIRTUAL_PORT: 80
+     # FTLCONF_webserver_api_password: ${webserver_api_password}
     extra_hosts:
       # LAN hostnames for other docker containers using nginx-proxy
       - 'pihole pihole.pixelpaladin.lan:192.168.1.10'
     restart: always
-
-#   Another container you might want to have running through the proxy
-#   Note it also have ENV Vars like pihole and a host under pihole's extra_hosts
-#  ghost:
-#    image: fractalf/ghost
-#    ports:
-#      - '2368:2368/tcp'
-#    volumes:
-#      - '/etc/ghost:/ghost-override'
-#    environment:
-#      PROXY_LOCATION: ghost
-#      VIRTUAL_HOST: ghost.yourDomain.lan
-#      VIRTUAL_PORT: 2368
-#    restart: always
