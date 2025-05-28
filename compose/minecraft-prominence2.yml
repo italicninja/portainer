@@ -5,7 +5,6 @@ services:
     image: itzg/minecraft-server:${IMAGE_TAG:-latest}
     volumes:
       - /data/minecraft-prominence2:/data
-      - /data/minecraft/modpacks:/modpacks:ro
     environment:
       EULA: "true"
       MOD_PLATFORM: AUTO_CURSEFORGE
