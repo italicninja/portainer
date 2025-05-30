@@ -13,6 +13,7 @@ services:
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: prominence-2-rpg
       #CURSEFORGE_FILES: luna, textile-backup, cloth-config, modmenu, fancymenu
+      CURSEFORGE_FILES: modmenu, fancymenu
       INIT_MEMORY: 8G
       MAX_MEMORY: 24G
       USE_AIKAR_FLAGS: true
