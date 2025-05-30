@@ -1,10 +1,11 @@
-version: '3'
+version: '3.8'
 
 services:
   mc:
-    image: itzg/minecraft-server:${IMAGE_TAG:-latest}
+    image: itzg/minecraft-server:${IMAGE_TAG:-2025.5.1}
+    container_name: minecraft-prominence2
     volumes:
-      - /data/minecraft-prominence2:/data
+      - minecraft_prominence2_data:/data
     environment:
       EULA: "true"
       MOD_PLATFORM: AUTO_CURSEFORGE
@@ -30,5 +31,39 @@ services:
     ports:
       - "25565:25565"
       - "127.0.0.1:25575:25575"
+    networks:
+      - minecraft_network
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+          memory: 24G
+        reservations:
+          memory: 8G
+    healthcheck:
+      test: ["CMD", "mc-status", "--host", "localhost"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      - "com.docker.compose.project=games"
+      - "com.docker.compose.service=minecraft-prominence2"
+    restart: unless-stopped
+
+networks:
+  minecraft_network:
+    driver: bridge
+
 volumes:
-  data: {}
+  minecraft_prominence2_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/minecraft-prominence2
