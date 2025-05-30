@@ -1,7 +1,7 @@
-version: "3"
+version: "3.8"
 services:
   icarus:
-    image: mornedhels/icarus-server:latest
+    image: mornedhels/icarus-server:1.3.2
     container_name: icarus
     hostname: icarus
     restart: unless-stopped
@@ -10,8 +10,8 @@ services:
       - "17777:17777/udp"
       - "27015:27015/udp"
     volumes:
-      - /data/icarus/home:/home/icarus/drive_c/icarus
-      - /data/icarus/game:/opt/icarus
+      - icarus_home:/home/icarus/drive_c/icarus
+      - icarus_game:/opt/icarus
     environment:
       - SERVER_NAME=SS ICARUS
       - SERVER_PASSWORD=${SERVER_PASSWORD}
@@ -20,3 +20,45 @@ services:
       - SERVER_QUERYPORT=27015
       - PUID=4711
       - PGID=4711
+      - TZ=America/Vancouver
+    networks:
+      - game_network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "nc", "-uz", "localhost", "17777"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=games"
+      - "com.docker.compose.service=icarus"
+
+networks:
+  game_network:
+    driver: bridge
+
+volumes:
+  icarus_home:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/icarus/home
+  icarus_game:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/icarus/game
