@@ -100,4 +100,4 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /data/minecraft-prominence2-backups
+      device: /backup/minecraft/minecraft-prominence2
