@@ -119,6 +119,10 @@ services:
                 exit 1
             fi
 
+            # Show last 4 digits of token for validation
+            token_suffix=$$(echo "$${VERCEL_TOKEN}" | tail -c 5)
+            log "Using Vercel token ending in: ...$${token_suffix}"
+
             # Test Vercel CLI authentication
             if ! vercel whoami --token "$${VERCEL_TOKEN}" >/dev/null 2>&1; then
                 log "ERROR: Invalid Vercel token or authentication failed"
