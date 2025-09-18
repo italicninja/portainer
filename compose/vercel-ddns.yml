@@ -17,11 +17,12 @@ services:
       # Optional: Set timezone
       TZ: ${TZ:-UTC}
     volumes:
-      - './scripts/vercel-ddns.sh:/app/vercel-ddns.sh:ro'
+      - './scripts/vercel-ddns.sh:/tmp/vercel-ddns.sh:ro'
       - 'ddns_data:/app/data'
     command: >
       sh -c "
         apk add --no-cache curl jq &&
+        cp /tmp/vercel-ddns.sh /app/vercel-ddns.sh &&
         chmod +x /app/vercel-ddns.sh &&
         /app/vercel-ddns.sh
       "
