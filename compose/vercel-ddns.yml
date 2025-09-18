@@ -59,13 +59,14 @@ services:
             local record_name="$$2"
             local record_type="$$3"
 
+            log "Fetching current DNS records for $${domain}..."
             # Use vercel dns ls to get current records
             if [ "$${record_name}" = "@" ]; then
                 # For root domain, look for records without a name or with empty name
-                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" 2>/dev/null | grep -E "^[[:space:]]*$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
+                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" | grep -E "^[[:space:]]*$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
             else
                 # For subdomains, look for the specific record name
-                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" 2>/dev/null | grep -E "^[[:space:]]*$${record_name}[[:space:]]+$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
+                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" | grep -E "^[[:space:]]*$${record_name}[[:space:]]+$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
             fi
         }
 
@@ -81,16 +82,16 @@ services:
             if [ -n "$${current_dns_ip}" ] && [ "$${current_dns_ip}" != "$${new_ip}" ]; then
                 log "Removing existing DNS record: $${record_name}.$${domain} ($${record_type}) -> $${current_dns_ip}"
                 if [ "$${record_name}" = "@" ]; then
-                    vercel dns rm "$${domain}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes 2>/dev/null || true
+                    vercel dns rm "$${domain}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes || true
                 else
-                    vercel dns rm "$${domain}" "$${record_name}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes 2>/dev/null || true
+                    vercel dns rm "$${domain}" "$${record_name}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes || true
                 fi
             fi
 
             # Add new DNS record
             log "Adding DNS record: $${record_name}.$${domain} ($${record_type}) -> $${new_ip}"
             if [ "$${record_name}" = "@" ]; then
-                if vercel dns add "$${domain}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}" 2>/dev/null; then
+                if vercel dns add "$${domain}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}"; then
                     log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
                     return 0
                 else
@@ -98,7 +99,7 @@ services:
                     return 1
                 fi
             else
-                if vercel dns add "$${domain}" "$${record_name}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}" 2>/dev/null; then
+                if vercel dns add "$${domain}" "$${record_name}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}"; then
                     log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
                     return 0
                 else
@@ -124,7 +125,8 @@ services:
             log "Using Vercel token ending in: ...$${token_suffix}"
 
             # Test Vercel CLI authentication
-            if ! vercel whoami --token "$${VERCEL_TOKEN}" >/dev/null 2>&1; then
+            log "Testing Vercel CLI authentication..."
+            if ! vercel whoami --token "$${VERCEL_TOKEN}"; then
                 log "ERROR: Invalid Vercel token or authentication failed"
                 exit 1
             fi
