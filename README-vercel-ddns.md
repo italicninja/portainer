@@ -148,12 +148,12 @@ docker run --rm -it \
 
 ```
 ├── compose/
-│   └── vercel-ddns.yml          # Docker Compose configuration
-├── scripts/
-│   └── vercel-ddns.sh           # Main DDNS script
+│   └── vercel-ddns.yml          # Docker Compose configuration with embedded script
 ├── .env.vercel-ddns.example     # Environment template
 └── README-vercel-ddns.md        # This file
 ```
+
+Note: The DDNS script is embedded directly in the Docker Compose file for easier deployment and to avoid file mounting issues.
 
 ## License
 
