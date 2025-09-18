@@ -5,12 +5,13 @@ A Docker Compose service that automatically updates Vercel DNS records when your
 ## Features
 
 - ✅ Checks public IP every 5 minutes (configurable)
-- ✅ Updates Vercel DNS records only when IP changes
+- ✅ Updates Vercel DNS records only when IP changes using official Vercel CLI
 - ✅ Supports multiple IP detection services for reliability
 - ✅ Comprehensive logging with timestamps
 - ✅ Health checks and automatic restart
-- ✅ Minimal resource usage (64MB RAM limit)
+- ✅ Efficient resource usage (128MB RAM limit)
 - ✅ Graceful shutdown handling
+- ✅ Built-in authentication validation
 
 ## Prerequisites
 
@@ -103,9 +104,11 @@ docker inspect vercel-ddns --format='{{.State.Health.Status}}'
 [2024-01-15 10:30:01] VERCEL-DDNS: Checking current public IP...
 [2024-01-15 10:30:02] VERCEL-DDNS: Current public IP: 203.0.113.42
 [2024-01-15 10:30:02] VERCEL-DDNS: IP address changed from '203.0.113.41' to '203.0.113.42'
-[2024-01-15 10:30:03] VERCEL-DDNS: Successfully updated DNS record: @.example.com -> 203.0.113.42
-[2024-01-15 10:30:03] VERCEL-DDNS: DNS update completed successfully
-[2024-01-15 10:30:03] VERCEL-DDNS: Sleeping for 300 seconds...
+[2024-01-15 10:30:03] VERCEL-DDNS: Removing existing DNS record: @.example.com (A) -> 203.0.113.41
+[2024-01-15 10:30:04] VERCEL-DDNS: Adding DNS record: @.example.com (A) -> 203.0.113.42
+[2024-01-15 10:30:05] VERCEL-DDNS: Successfully updated DNS record: @.example.com -> 203.0.113.42
+[2024-01-15 10:30:05] VERCEL-DDNS: DNS update completed successfully
+[2024-01-15 10:30:05] VERCEL-DDNS: Sleeping for 300 seconds...
 ```
 
 ## Troubleshooting
@@ -124,6 +127,12 @@ docker inspect vercel-ddns --format='{{.State.Health.Status}}'
    - Verify your Vercel token has the correct permissions
    - Check that the domain exists in your Vercel account
    - Ensure the domain is properly configured in Vercel
+   - Try running `vercel whoami --token YOUR_TOKEN` to test authentication
+
+4. **"Invalid Vercel token or authentication failed"**
+   - Verify your token is correct and not expired
+   - Ensure the token has DNS management permissions
+   - Check that your Vercel account has access to the domain
 
 ### Debug Mode
 
@@ -132,9 +141,8 @@ To see more detailed output, you can run the container interactively:
 ```bash
 docker run --rm -it \
   --env-file .env \
-  -v "$(pwd)/scripts/vercel-ddns.sh:/app/vercel-ddns.sh:ro" \
-  alpine:3.18 \
-  sh -c "apk add --no-cache curl jq && chmod +x /app/vercel-ddns.sh && /app/vercel-ddns.sh"
+  node:18-alpine \
+  sh -c "apk add --no-cache curl && npm install -g vercel@latest && vercel whoami --token \$VERCEL_TOKEN"
 ```
 
 ## Security Notes

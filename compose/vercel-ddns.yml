@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   vercel-ddns:
-    image: alpine:3.18
+    image: node:18-alpine
     container_name: vercel-ddns
     environment:
       # Vercel API Configuration
@@ -24,7 +24,8 @@ services:
       - -c
       - |
         echo "Installing dependencies..."
-        apk add --no-cache curl jq
+        apk add --no-cache curl
+        npm install -g vercel@latest
 
         echo "Creating DDNS script..."
         cat > /app/ddns.sh << 'SCRIPT_END'
@@ -53,40 +54,57 @@ services:
             return 1
         }
 
+        get_current_dns_record() {
+            local domain="$$1"
+            local record_name="$$2"
+            local record_type="$$3"
+
+            # Use vercel dns ls to get current records
+            if [ "$${record_name}" = "@" ]; then
+                # For root domain, look for records without a name or with empty name
+                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" 2>/dev/null | grep -E "^[[:space:]]*$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
+            else
+                # For subdomains, look for the specific record name
+                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" 2>/dev/null | grep -E "^[[:space:]]*$${record_name}[[:space:]]+$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
+            fi
+        }
+
         update_vercel_record() {
             local domain="$$1"
             local record_name="$$2"
             local record_type="$$3"
             local new_ip="$$4"
 
-            response=$$(curl -s -H "Authorization: Bearer $${VERCEL_TOKEN}" \
-                "https://api.vercel.com/v2/domains/$${domain}/records")
+            # Get current DNS record value
+            current_dns_ip=$$(get_current_dns_record "$${domain}" "$${record_name}" "$${record_type}")
 
-            record_id=$$(echo "$${response}" | jq -r ".records[] | select(.name == \"$${record_name}\" and .type == \"$${record_type}\") | .id" 2>/dev/null)
-
-            if [ -n "$${record_id}" ] && [ "$${record_id}" != "null" ]; then
-                log "Updating existing DNS record (ID: $${record_id})"
-                update_response=$$(curl -s -X PATCH \
-                    -H "Authorization: Bearer $${VERCEL_TOKEN}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"value\": \"$${new_ip}\"}" \
-                    "https://api.vercel.com/v2/domains/$${domain}/records/$${record_id}")
-            else
-                log "Creating new DNS record"
-                update_response=$$(curl -s -X POST \
-                    -H "Authorization: Bearer $${VERCEL_TOKEN}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"name\": \"$${record_name}\", \"type\": \"$${record_type}\", \"value\": \"$${new_ip}\"}" \
-                    "https://api.vercel.com/v2/domains/$${domain}/records")
+            if [ -n "$${current_dns_ip}" ] && [ "$${current_dns_ip}" != "$${new_ip}" ]; then
+                log "Removing existing DNS record: $${record_name}.$${domain} ($${record_type}) -> $${current_dns_ip}"
+                if [ "$${record_name}" = "@" ]; then
+                    vercel dns rm "$${domain}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes 2>/dev/null || true
+                else
+                    vercel dns rm "$${domain}" "$${record_name}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes 2>/dev/null || true
+                fi
             fi
 
-            if echo "$${update_response}" | jq -e '.error' > /dev/null 2>&1; then
-                error_message=$$(echo "$${update_response}" | jq -r '.error.message')
-                log "ERROR: Failed to update DNS record: $${error_message}"
-                return 1
+            # Add new DNS record
+            log "Adding DNS record: $${record_name}.$${domain} ($${record_type}) -> $${new_ip}"
+            if [ "$${record_name}" = "@" ]; then
+                if vercel dns add "$${domain}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}" 2>/dev/null; then
+                    log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
+                    return 0
+                else
+                    log "ERROR: Failed to add DNS record"
+                    return 1
+                fi
             else
-                log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
-                return 0
+                if vercel dns add "$${domain}" "$${record_name}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}" 2>/dev/null; then
+                    log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
+                    return 0
+                else
+                    log "ERROR: Failed to add DNS record"
+                    return 1
+                fi
             fi
         }
 
@@ -98,6 +116,12 @@ services:
 
             if [ -z "$${VERCEL_DOMAIN}" ]; then
                 log "ERROR: VERCEL_DOMAIN environment variable is required"
+                exit 1
+            fi
+
+            # Test Vercel CLI authentication
+            if ! vercel whoami --token "$${VERCEL_TOKEN}" >/dev/null 2>&1; then
+                log "ERROR: Invalid Vercel token or authentication failed"
                 exit 1
             fi
 
@@ -156,17 +180,17 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
           cpus: '0.1'
           memory: 64M
-        reservations:
-          cpus: '0.05'
-          memory: 32M
     healthcheck:
       test: ["CMD", "pgrep", "-f", "ddns.sh"]
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
     logging:
       driver: "json-file"
       options:
