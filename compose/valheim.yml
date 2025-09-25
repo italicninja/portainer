@@ -25,7 +25,7 @@ services:
       - BACKUPS_IF_IDLE=true
       - POST_BACKUP_HOOK=cp @BACKUP_FILE@ /backup/valheim/$(basename @BACKUP_FILE@)
       - BEPINEX=true
-      - 'POST_BEPINEX_CONFIG_HOOK=curl -sfSL https://thunderstore.io/package/download/Searica/Extra_Snap_Points_Made_Easy/2.0.5/ -o /tmp/extra_snap_points.zip && unzip -o /tmp/extra_snap_points.zip -d /tmp/extra_snap_points && cp -r /tmp/extra_snap_points/BepInExPack_Valheim/* /config/bepinex/ && cp -r /tmp/extra_snap_points/plugins/* /config/bepinex/plugins/ && rm -rf /tmp/extra_snap_points*'
+      - 'POST_BEPINEX_CONFIG_HOOK=curl -sfSL https://thunderstore.io/package/download/Searica/Extra_Snap_Points_Made_Easy/2.0.5/ -o /tmp/extra_snap_points.zip && unzip -o /tmp/extra_snap_points.zip -d /tmp/extra_snap_points && cp /tmp/extra_snap_points/*.dll /config/bepinex/plugins/ && rm -rf /tmp/extra_snap_points*'
       - DISCORD_WEBHOOK=${DISCORD_WEBHOOK}
       - DISCORD_MESSAGE=Starting Valheim server $$SERVER_NAME
       - 'PRE_BOOTSTRAP_HOOK=curl -sfSL -X POST -H "Content-Type: application/json" -d "{\"username\":\"Valheim\",\"content\":\"$$(eval echo $$DISCORD_MESSAGE)\"}" "$$DISCORD_WEBHOOK"'
