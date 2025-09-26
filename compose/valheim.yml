@@ -27,6 +27,9 @@ services:
       - BEPINEX=true
       - 'POST_BEPINEX_CONFIG_HOOK=curl -sfSL https://thunderstore.io/package/download/Searica/Extra_Snap_Points_Made_Easy/2.0.5/ -o /tmp/extra_snap_points.zip && unzip -o /tmp/extra_snap_points.zip -d /tmp/extra_snap_points && cp /tmp/extra_snap_points/*.dll /config/bepinex/plugins/ && rm -rf /tmp/extra_snap_points*'
       - DISCORD_WEBHOOK=${DISCORD_WEBHOOK}
-      - DISCORD_MESSAGE=Starting Valheim server $$SERVER_NAME
-      - 'PRE_BOOTSTRAP_HOOK=curl -sfSL -X POST -H "Content-Type: application/json" -d "{\"username\":\"Valheim\",\"content\":\"$$(eval echo $$DISCORD_MESSAGE)\"}" "$$DISCORD_WEBHOOK"'
+      - DISCORD_AVATAR_URL=https://cdn.cloudflare.steamstatic.com/steam/apps/892970/header.jpg
+      - SERVER_IP=${SERVER_IP:-your-server-ip}
+      - MAX_PLAYERS=10
+      - 'DISCORD_EMBED_STARTUP={"username":"Valheim Server","avatar_url":"DISCORD_AVATAR_URL_PLACEHOLDER","embeds":[{"title":"🚀 Server Starting","description":"**SERVER_NAME_PLACEHOLDER** is initializing...","color":1973162,"thumbnail":{"url":"DISCORD_AVATAR_URL_PLACEHOLDER"},"fields":[{"name":"🌍 World","value":"WORLD_NAME_PLACEHOLDER","inline":true},{"name":"🌐 Server Address","value":"SERVER_IP_PLACEHOLDER:2456","inline":true},{"name":"👥 Max Players","value":"MAX_PLAYERS_PLACEHOLDER","inline":true},{"name":"🔧 Mods","value":"BepInEx + Extra Snap Points","inline":true},{"name":"💾 Backups","value":"Every 2 hours","inline":true},{"name":"⏱️ Estimated Startup","value":"~2-3 minutes","inline":true}],"footer":{"text":"Server Status: Initializing","icon_url":"https://cdn.discordapp.com/emojis/loading.gif"},"timestamp":"TIMESTAMP_PLACEHOLDER"}]}'
+      - 'PRE_BOOTSTRAP_HOOK=EMBED_JSON="$$DISCORD_EMBED_STARTUP"; EMBED_JSON=$$(echo "$$EMBED_JSON" | sed "s|DISCORD_AVATAR_URL_PLACEHOLDER|$$DISCORD_AVATAR_URL|g" | sed "s|SERVER_NAME_PLACEHOLDER|$$SERVER_NAME|g" | sed "s|WORLD_NAME_PLACEHOLDER|$$WORLD_NAME|g" | sed "s|SERVER_IP_PLACEHOLDER|$$SERVER_IP|g" | sed "s|MAX_PLAYERS_PLACEHOLDER|$$MAX_PLAYERS|g" | sed "s|TIMESTAMP_PLACEHOLDER|$$(date -u +%Y-%m-%dT%H:%M:%S.000Z)|g"); curl -sfSL -X POST -H "Content-Type: application/json" -d "$$EMBED_JSON" "$$DISCORD_WEBHOOK"'
     restart: unless-stopped
