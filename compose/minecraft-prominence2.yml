@@ -9,7 +9,7 @@ services:
       MOD_PLATFORM: AUTO_CURSEFORGE
       DEBUG: "${DEBUG:-false}"
       CF_API_KEY: ${CF_API_KEY}
-      CF_SLUG: prominence-2-rpg
+      CF_SLUG: prominence-2-hasturian-era
       #CURSEFORGE_FILES: luna, textile-backup, cloth-config, modmenu, fancymenu
       CURSEFORGE_FILES: modmenu, fancymenu
       INIT_MEMORY: 8G
