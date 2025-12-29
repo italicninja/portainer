@@ -22,6 +22,8 @@ services:
       CUSTOM_SERVER_PROPERTIES: |-
         allow-flight=true
         spawn-protection=false
+        white-list=true
+        enforce-whitelist=true
       RCON_CMDS_STARTUP:  |-
         /gamerule doFireTick false
         /gamerule mobGriefing false
