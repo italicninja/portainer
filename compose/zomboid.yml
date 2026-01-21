@@ -40,8 +40,10 @@ services:
       # 3450258411 = SHELTER Echo Creek B42 (map mod)
       - WORKSHOP_IDS=2875848298;2335368829;2553809727;2447729538;2625625421;3171167894;2950902979;2684285534;2714198296;2866258937;2972289937;3618557184;3413150945;3330403100;2940354599;3564950449;3624308198;3429294706;3490188370;3508537032;3437629766;3617854007;2840805724;3110911330;3615459796;3433203442;3543229299;3638469608;2286124931;3539876164;3610677934;3465040406;3461263912;3395171770;3390174394;3623247107;2909035179;3627539752;3623609320;3430172149;3450258411
       # For Build 42, MOD_IDS require \\ prefix (load order matters!)
-      # Added shelter-EC42 for Echo Creek map spawning
-      - MOD_IDS=\\NeatUI_Framework;\\ProximityInventory4213;\\FWOFitnessWorkoutOverhaul;\\FWOBenchPress&Treadmill;\\KI5trailers;\\MoreDamagedObjects;\\HereGoesTheSun;\\GenRange;\\MiniHealthPanel;\\NoLighterNeeded;\\SpnCloth;\\EQUIPMENT_UI;\\damnlib;\\isoContainers;\\FH;\\KillCount;\\Authentic Z - Current;\\CommonSenseEarlyPatch;\\BB_CommonSense;\\CommonSenseLatePatch;\\CSB42MP;\\P4HasBeenRead;\\ProjectSummerCar;\\Homebound;\\Project_Cook;\\CleanUI;\\ArcheryNexus;\\SimpleOverhaulTraitsAndOccupations;\\WoodysRainAndWetSnowCleaning;\\87fordB700;\\B42_TMC_Trolley;\\PROJECTRVInterior42;\\ReadFasterWhenSitting42MpFix;\\CombatText;\\GymEquipment;\\HBVCEFb42;\\OpenAllContainers;\\CleanHotBar;\\moodlesinlua;\\devcattmoodles;\\MultiplayerPause_FastForward;\\BetterCarPhysics;\\twistmapimprovements;\\flipvehicleplustrailer;\\shelter-EC42
+      # Removed: CommonSenseEarlyPatch, CommonSenseLatePatch (workshop removed)
+      # Removed: P4HasBeenRead (workshop removed)
+      # Added: shelter-EC42 for Echo Creek map spawning
+      - MOD_IDS=\\NeatUI_Framework;\\ProximityInventory4213;\\FWOFitnessWorkoutOverhaul;\\FWOBenchPress&Treadmill;\\KI5trailers;\\MoreDamagedObjects;\\HereGoesTheSun;\\GenRange;\\MiniHealthPanel;\\NoLighterNeeded;\\SpnCloth;\\EQUIPMENT_UI;\\damnlib;\\isoContainers;\\FH;\\KillCount;\\Authentic Z - Current;\\BB_CommonSense;\\CSB42MP;\\ProjectSummerCar;\\Homebound;\\Project_Cook;\\CleanUI;\\ArcheryNexus;\\SimpleOverhaulTraitsAndOccupations;\\WoodysRainAndWetSnowCleaning;\\87fordB700;\\B42_TMC_Trolley;\\PROJECTRVInterior42;\\ReadFasterWhenSitting42MpFix;\\CombatText;\\GymEquipment;\\HBVCEFb42;\\OpenAllContainers;\\CleanHotBar;\\moodlesinlua;\\devcattmoodles;\\MultiplayerPause_FastForward;\\BetterCarPhysics;\\twistmapimprovements;\\flipvehicleplustrailer;\\shelter-EC42
       
       # Performance & Updates
       - FORCEUPDATE=false
