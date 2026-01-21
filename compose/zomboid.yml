@@ -1,64 +1,89 @@
-#
-#  Project Zomboid Dedicated Server using SteamCMD Docker Image.
-#  Copyright (C) 2021-2022 Renegade-Master [renegade.master.dev@protonmail.com]
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#
-
-version: "3.8"
+version: '3.8'
 
 services:
-  zomboid-dedicated-server:
-    build:
-      context: .
-      dockerfile: docker/zomboid-dedicated-server.Dockerfile
-    image: "docker.io/renegademaster/zomboid-dedicated-server:latest"
-    container_name: zomboid-dedicated-server
-    restart: "no"
-    environment:
-      #- "ADMIN_PASSWORD=changeme"
-     # - "ADMIN_USERNAME=superuser"
-      - "AUTOSAVE_INTERVAL=15"
-      - "BIND_IP=0.0.0.0"
-      - "DEFAULT_PORT=16261"
-      - "GAME_VERSION=public"
-      - "GC_CONFIG=ZGC"
-      - "MAP_NAMES=Muldraugh, KY"
-      - "MAX_PLAYERS=16"
-      - "MAX_RAM=4096m"
-      - "MOD_NAMES="
-      - "MOD_WORKSHOP_IDS=2714850307"
-      - "PAUSE_ON_EMPTY=true"
-      - "PUBLIC_SERVER=true"
-      #- "RCON_PASSWORD=changeme_rcon"
-      - "RCON_PORT=27015"
-      - "SERVER_NAME=SSF - Horde Night"
-      #- "SERVER_PASSWORD="
-      - "STEAM_VAC=true"
-      - "UDP_PORT=16262"
-      - "USE_STEAM=true"
-      - "TZ=UTC"
+  zomboid-server:
+    image: danixu86/project-zomboid-dedicated-server:latest-release
+    container_name: zomboid-server
     ports:
-      - target: 16261
-        published: 16261
-        protocol: udp
-      - target: 16262
-        published: 16262
-        protocol: udp
-      - target: 27015
-        published: 27015
-        protocol: tcp
+      - "16261:16261/udp"
+      - "16262:16262/udp"
+      - "8766:8766/udp"
+      - "8767:8767/udp"
+      - "27015:27015/tcp"
     volumes:
-      - /data/ZomboidDedicatedServer:/home/steam/ZomboidDedicatedServer
-      - /data/ZomboidConfig:/home/steam/Zomboid/
+      - zomboid_config:/home/steam/Zomboid
+      - zomboid_server:/home/steam/pz-dedicated
+    environment:
+      # Build 42 Support
+      - STEAMAPPBRANCH=unstable
+      
+      # Admin Configuration
+      - ADMINUSERNAME=${ZOMBOID_ADMIN_USERNAME:-admin}
+      - ADMINPASSWORD=${ZOMBOID_ADMIN_PASSWORD}
+      
+      # Server Configuration
+      - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
+      - DISPLAYNAME=SSF - Horde Night
+      - PASSWORD=${ZOMBOID_SERVER_PASSWORD:-}
+      - RCONPASSWORD=${ZOMBOID_RCON_PASSWORD}
+      
+      # Server Settings
+      - PUBLIC=true
+      - STEAMVAC=true
+      - SERVERPRESET=Apocalypse
+      - PORT=16261
+      - MEMORY=${ZOMBOID_MEMORY:-6144m}
+      
+      # Workshop Mods (semicolon-separated)
+      - WORKSHOP_IDS=3586053117;2875848298;2544353492;2335368829;2553809727;2447729538;2625625421;3171167894;2950902979;2684285534;2714198296;2866258937;2972289937;3618557184;3413150945;3330403100;2940354599;3564950449;3624308198;3429294706;3490188370;3508537032;3437629766;3617854007;2840805724;3110911330;3615459796;3433203442;3543229299;3638469608;2286124931;3539876164;3610677934;3465040406;3461263912;3395171770;3390174394;3623247107;2909035179;3627539752;3623609320;3430172149
+      # For Build 42, MOD_IDS require \\ prefix
+      - MOD_IDS=
+      
+      # Performance & Updates
+      - FORCEUPDATE=false
+      
+      # Localization
+      - LANG=en_EN.UTF-8
+      - TZ=${TZ:-UTC}
+    networks:
+      - game_network
+    deploy:
+      resources:
+        limits:
+          cpus: '6'
+          memory: 8G
+        reservations:
+          memory: 6G
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f ProjectZomboid64 || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 300s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+    labels:
+      - "com.docker.compose.project=games"
+      - "com.docker.compose.service=zomboid"
+    restart: unless-stopped
+
+networks:
+  game_network:
+    driver: bridge
+
+volumes:
+  zomboid_config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/ZomboidConfig
+  zomboid_server:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/ZomboidDedicatedServer
