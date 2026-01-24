@@ -19,7 +19,7 @@ services:
       
       # Admin Configuration
       - ADMINUSERNAME=${ZOMBOID_ADMIN_USERNAME:-admin}
-      - ADMINPASSWORD=${ZOMBOID_ADMIN_PASSWORD}
+      - ADMINPASSWORD=${ZOMBOID_ADMIN_PASSWORD:-changeme}
       
       # Server Configuration
       - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
