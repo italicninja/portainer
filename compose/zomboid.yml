@@ -23,8 +23,8 @@ services:
       - ADMINPASSWORD=${ZOMBOID_ADMIN_PASSWORD:-changeme}
       
       # Server Configuration
-      - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
-      - DISPLAYNAME=SSF - Horde Night
+      - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight-B42}
+      - DISPLAYNAME=SSF - Horde Night (Build 42)
       - PASSWORD=${ZOMBOID_SERVER_PASSWORD:-}
       - RCONPASSWORD=${ZOMBOID_RCON_PASSWORD}
       
