@@ -14,8 +14,9 @@ services:
       - zomboid_config:/home/steam/Zomboid
       - zomboid_server:/home/steam/pz-dedicated
     environment:
-      # Build 42 Support
+      # Build 42 Support (unstable branch)
       - STEAMAPPBRANCH=unstable
+      - STEAMAPPVALIDATE=true
       
       # Admin Configuration
       - ADMINUSERNAME=${ZOMBOID_ADMIN_USERNAME:-admin}
