@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   zomboid-server:
-    image: danixu86/project-zomboid-dedicated-server:latest-release
+    image: danixu86/project-zomboid-dedicated-server:latest-unstable
     container_name: zomboid-server
     ports:
       - "16261:16261/udp"
