@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   zomboid-server:
-    image: danixu86/project-zomboid-dedicated-server:latest-unstable
+    image: danixu86/project-zomboid-dedicated-server:latest
     container_name: zomboid-server
     ports:
       - "16261:16261/udp"
@@ -14,8 +14,8 @@ services:
       - zomboid_config:/home/steam/Zomboid
       - zomboid_server:/home/steam/pz-dedicated
     environment:
-      # Build 42 Support (unstable branch)
-      - STEAMAPPBRANCH=unstable
+      # Stable Build
+      - STEAMAPPBRANCH=public
       - STEAMAPPVALIDATE=true
       
       # Admin Configuration
@@ -23,8 +23,8 @@ services:
       - ADMINPASSWORD=${ZOMBOID_ADMIN_PASSWORD:-changeme}
       
       # Server Configuration
-      - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight-B42}
-      - DISPLAYNAME=SSF - Horde Night (Build 42)
+      - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
+      - DISPLAYNAME=SSF - Horde Night
       - PASSWORD=${ZOMBOID_SERVER_PASSWORD:-}
       - RCONPASSWORD=${ZOMBOID_RCON_PASSWORD}
       
@@ -35,17 +35,8 @@ services:
       - PORT=16261
       - MEMORY=${ZOMBOID_MEMORY:-6144m}
       
-      # Workshop Mods (semicolon-separated)
-      # DISABLED - Testing Build 42 upgrade first
+      # Workshop Mods (disabled)
       - WORKSHOP_IDS=""
-      
-      # WORKING MODS (29 total):
-      # 2875848298 = Common Sense
-      # 2625625421 = Containers!
-      # 2972289937 = Visible Generator Range
-      # 3564950449;3624308198;3429294706;3490188370;3508537032;3437629766;3617854007;2840805724;3110911330;3615459796;3433203442;3543229299;3638469608;2286124931;3539876164;3610677934;3465040406;3461263912;3395171770;3390174394;3623247107;2909035179;3627539752;3623609320;3430172149;3450258411
-      
-      # REMOVED (Steam Workshop download failures): 2950902979, 2684285534, 2714198296, 2866258937, 3618557184, 3413150945, 3330403100, 2940354599
       - MOD_IDS=""
 
       # Performance & Updates
@@ -54,7 +45,7 @@ services:
       
       # Localization
       - LANG=en_EN.UTF-8
-      - TZ=${TZ:-UTC}
+      - TZ=America/Vancouver
     networks:
       - game_network
     deploy:
