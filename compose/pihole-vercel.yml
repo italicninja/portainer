@@ -1,0 +1,302 @@
+version: '3.8'
+
+# Combined Pi-hole and Vercel DDNS stack
+# This configuration runs Pi-hole for DNS filtering and uses Vercel for public DNS hosting
+
+services:
+  # Pi-hole DNS server with ad blocking
+  pihole:
+    image: pihole/pihole:${IMAGE_TAG:-latest}
+    container_name: pihole
+    ports:
+      - '53:53/tcp'
+      - '53:53/udp'
+      - "67:67/udp"
+      - '8053:80/tcp'
+      - '8443:443/tcp'
+    volumes:
+      - pihole_etc:/etc/pihole
+      - pihole_dnsmasq:/etc/dnsmasq.d
+      - pihole_certs:/etc/lighttpd/certs
+    cap_add:
+      - NET_ADMIN
+    environment:
+      FTLCONF_LOCAL_IPV4: ${LOCAL_IPV4:-192.168.1.10}
+      PROXY_LOCATION: pihole
+      VIRTUAL_HOST: ${PIHOLE_DOMAIN:-pihole.italicninja.com}
+      VIRTUAL_PORT: 80
+      TZ: ${TZ:-America/Vancouver}
+      WEBPASSWORD: ${PIHOLE_PASSWORD}
+      # Vercel DNS domain reference
+      PIHOLE_DNS_DOMAIN: ${VERCEL_DOMAIN:-}
+      # Security settings
+      FTLCONF_RATE_LIMIT: '1000/60'
+      FTLCONF_REPLY_WHEN_BUSY: 'ALLOW'
+      FTLCONF_BLOCK_ICLOUD_PR: 'true'
+      FTLCONF_MOZILLA_CANARY: 'true'
+      # HTTPS configuration
+      FTLCONF_WEBSERVER_PORT: '443'
+      FTLCONF_WEBUIBOXEDLAYOUT: 'boxed'
+      DNSMASQ_LISTENING: 'all'
+      # Upstream DNS servers (Cloudflare by default)
+      PIHOLE_DNS_: '1.1.1.1;1.0.0.1'
+      # ServerIP for Vercel domain
+      ServerIP: ${SERVER_PUBLIC_IP:-}
+    extra_hosts:
+      # LAN hostnames for local resolution
+      - 'pihole ${PIHOLE_DOMAIN:-pihole.italicninja.com}:${LOCAL_IPV4:-192.168.1.10}'
+    networks:
+      - dns_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "dig", "@127.0.0.1", "-p", "53", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=pihole"
+    restart: unless-stopped
+
+  # Vercel DDNS - Updates Vercel DNS records with your public IP
+  vercel-ddns:
+    image: node:18-alpine
+    container_name: vercel-ddns
+    depends_on:
+      - pihole
+    environment:
+      # Vercel API Configuration
+      VERCEL_TOKEN: ${VERCEL_TOKEN}
+      VERCEL_DOMAIN: ${VERCEL_DOMAIN}
+      VERCEL_RECORD_NAME: ${VERCEL_RECORD_NAME:-@}
+      VERCEL_RECORD_TYPE: ${VERCEL_RECORD_TYPE:-A}
+      # Additional DNS records for Pi-hole subdomain
+      PIHOLE_SUBDOMAIN: ${PIHOLE_SUBDOMAIN:-pihole}
+      # Check interval in seconds (300 = 5 minutes)
+      CHECK_INTERVAL: ${CHECK_INTERVAL:-300}
+      # Optional: Set timezone
+      TZ: ${TZ:-UTC}
+    volumes:
+      - 'ddns_data:/app/data'
+    working_dir: /app
+    entrypoint: ["/bin/sh"]
+    command:
+      - -c
+      - |
+        echo "Installing dependencies..."
+        apk add --no-cache curl
+        npm install -g vercel@latest
+
+        echo "Creating enhanced DDNS script with Pi-hole support..."
+        cat > /app/ddns.sh << 'SCRIPT_END'
+        #!/bin/sh
+        set -e
+
+        DATA_DIR="/app/data"
+        IP_FILE="$${DATA_DIR}/last_ip.txt"
+        LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')] VERCEL-DDNS:"
+
+        mkdir -p "$${DATA_DIR}"
+
+        log() {
+            echo "$${LOG_PREFIX} $$1"
+        }
+
+        get_public_ip() {
+            for service in "https://ipv4.icanhazip.com" "https://api.ipify.org" "https://checkip.amazonaws.com"; do
+                if ip=$$(curl -s --max-time 10 "$${service}" | tr -d '\n\r'); then
+                    if echo "$${ip}" | grep -E '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$$' > /dev/null; then
+                        echo "$${ip}"
+                        return 0
+                    fi
+                fi
+            done
+            return 1
+        }
+
+        get_current_dns_record() {
+            local domain="$$1"
+            local record_name="$$2"
+            local record_type="$$3"
+
+            if [ "$${record_name}" = "@" ]; then
+                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" | grep -E "^[[:space:]]*$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
+            else
+                vercel dns ls "$${domain}" --token "$${VERCEL_TOKEN}" | grep -E "^[[:space:]]*$${record_name}[[:space:]]+$${record_type}[[:space:]]+" | head -1 | awk '{print $$NF}' || echo ""
+            fi
+        }
+
+        update_vercel_record() {
+            local domain="$$1"
+            local record_name="$$2"
+            local record_type="$$3"
+            local new_ip="$$4"
+
+            current_dns_ip=$$(get_current_dns_record "$${domain}" "$${record_name}" "$${record_type}")
+
+            if [ -n "$${current_dns_ip}" ] && [ "$${current_dns_ip}" != "$${new_ip}" ]; then
+                log "Removing existing DNS record: $${record_name}.$${domain} ($${record_type}) -> $${current_dns_ip}"
+                if [ "$${record_name}" = "@" ]; then
+                    vercel dns rm "$${domain}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes || true
+                else
+                    vercel dns rm "$${domain}" "$${record_name}" "$${record_type}" --token "$${VERCEL_TOKEN}" --yes || true
+                fi
+            fi
+
+            log "Adding DNS record: $${record_name}.$${domain} ($${record_type}) -> $${new_ip}"
+            if [ "$${record_name}" = "@" ]; then
+                if vercel dns add "$${domain}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}"; then
+                    log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
+                    return 0
+                else
+                    log "ERROR: Failed to add DNS record"
+                    return 1
+                fi
+            else
+                if vercel dns add "$${domain}" "$${record_name}" "$${record_type}" "$${new_ip}" --token "$${VERCEL_TOKEN}"; then
+                    log "Successfully updated DNS record: $${record_name}.$${domain} -> $${new_ip}"
+                    return 0
+                else
+                    log "ERROR: Failed to add DNS record"
+                    return 1
+                fi
+            fi
+        }
+
+        validate_config() {
+            if [ -z "$${VERCEL_TOKEN}" ]; then
+                log "ERROR: VERCEL_TOKEN environment variable is required"
+                exit 1
+            fi
+
+            if [ -z "$${VERCEL_DOMAIN}" ]; then
+                log "ERROR: VERCEL_DOMAIN environment variable is required"
+                exit 1
+            fi
+
+            token_suffix=$$(echo "$${VERCEL_TOKEN}" | tail -c 5)
+            log "Using Vercel token ending in: ...$${token_suffix}"
+
+            log "Testing Vercel CLI authentication..."
+            if ! vercel whoami --token "$${VERCEL_TOKEN}"; then
+                log "ERROR: Invalid Vercel token or authentication failed"
+                exit 1
+            fi
+
+            log "Configuration validated successfully"
+            log "Domain: $${VERCEL_DOMAIN}"
+            log "Primary record: $${VERCEL_RECORD_NAME}.$${VERCEL_DOMAIN} ($${VERCEL_RECORD_TYPE})"
+            if [ -n "$${PIHOLE_SUBDOMAIN}" ]; then
+                log "Pi-hole record: $${PIHOLE_SUBDOMAIN}.$${VERCEL_DOMAIN} (A)"
+            fi
+            log "Check interval: $${CHECK_INTERVAL} seconds"
+        }
+
+        main() {
+            log "Starting Vercel Dynamic DNS service with Pi-hole integration"
+
+            validate_config
+
+            while true; do
+                log "Checking current public IP..."
+
+                if ! current_ip=$$(get_public_ip); then
+                    log "ERROR: Failed to get public IP address"
+                    sleep "$${CHECK_INTERVAL}"
+                    continue
+                fi
+
+                log "Current public IP: $${current_ip}"
+
+                last_ip=""
+                if [ -f "$${IP_FILE}" ]; then
+                    last_ip=$$(cat "$${IP_FILE}" 2>/dev/null || echo "")
+                fi
+
+                if [ "$${current_ip}" != "$${last_ip}" ]; then
+                    log "IP address changed from '$${last_ip}' to '$${current_ip}'"
+
+                    # Update primary domain record
+                    if update_vercel_record "$${VERCEL_DOMAIN}" "$${VERCEL_RECORD_NAME}" "$${VERCEL_RECORD_TYPE}" "$${current_ip}"; then
+                        log "Primary DNS record updated successfully"
+                        
+                        # Update Pi-hole subdomain if configured
+                        if [ -n "$${PIHOLE_SUBDOMAIN}" ]; then
+                            log "Updating Pi-hole subdomain: $${PIHOLE_SUBDOMAIN}.$${VERCEL_DOMAIN}"
+                            if update_vercel_record "$${VERCEL_DOMAIN}" "$${PIHOLE_SUBDOMAIN}" "A" "$${current_ip}"; then
+                                log "Pi-hole DNS record updated successfully"
+                            else
+                                log "WARNING: Failed to update Pi-hole DNS record"
+                            fi
+                        fi
+                        
+                        echo "$${current_ip}" > "$${IP_FILE}"
+                        log "DNS update completed successfully"
+                    else
+                        log "ERROR: Failed to update primary DNS record"
+                    fi
+                else
+                    log "IP address unchanged ($${current_ip})"
+                fi
+
+                log "Sleeping for $${CHECK_INTERVAL} seconds..."
+                sleep "$${CHECK_INTERVAL}"
+            done
+        }
+
+        trap 'log "Received shutdown signal, exiting..."; exit 0' TERM INT
+        main
+        SCRIPT_END
+
+        echo "Starting enhanced DDNS service..."
+        chmod +x /app/ddns.sh
+        exec /app/ddns.sh
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "ddns.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=vercel-ddns"
+    restart: unless-stopped
+    networks:
+      - dns_network
+
+networks:
+  dns_network:
+    driver: bridge
+    name: dns_network
+
+volumes:
+  pihole_etc:
+    driver: local
+  pihole_dnsmasq:
+    driver: local
+  pihole_certs:
+    driver: local
+  ddns_data:
+    driver: local

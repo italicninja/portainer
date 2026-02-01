@@ -1,0 +1,27 @@
+version: '3.8'
+
+# Temporary one-time stack to clear Workshop cache
+# Run this ONCE, then remove it and start zomboid.yml
+
+services:
+  clear-workshop:
+    image: alpine:latest
+    container_name: clear-zomboid-workshop
+    volumes:
+      - zomboid_server:/data
+    command: >
+      sh -c "
+        echo 'Clearing Workshop cache...';
+        rm -rf /data/steamapps/workshop/*;
+        echo 'Workshop cache cleared!';
+        ls -la /data/steamapps/;
+      "
+    restart: "no"
+
+volumes:
+  zomboid_server:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/ZomboidDedicatedServer

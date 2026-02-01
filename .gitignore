@@ -1,3 +1,21 @@
+# Environment files (actual secrets - never commit)
 *.env
+.env
 .env.*
-!.env.*.example
+
+# Keep environment templates (safe to commit)
+!env/.env.*.example
+
+# Docker and system files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.tmp
+
+# Logs
+*.log
