@@ -16,6 +16,8 @@ services:
       - pihole_certs:/etc/lighttpd/certs
     cap_add:
       - NET_ADMIN
+      - SYS_NICE
+      - CHOWN
     environment:
       FTLCONF_LOCAL_IPV4: 192.168.1.10
       PROXY_LOCATION: pihole
@@ -25,14 +27,9 @@ services:
       WEBPASSWORD: ${PIHOLE_PASSWORD}
       # Vercel DNS domain (if using Vercel for public DNS)
       PIHOLE_DNS_DOMAIN: ${VERCEL_DOMAIN:-}
-      # Security settings
-      FTLCONF_RATE_LIMIT: '1000/60'
-      FTLCONF_REPLY_WHEN_BUSY: 'ALLOW'
-      FTLCONF_BLOCK_ICLOUD_PR: 'true'
-      FTLCONF_MOZILLA_CANARY: 'true'
-      # HTTPS configuration
+      # HTTPS configuration (correct for v6.4.1)
       FTLCONF_WEBSERVER_PORT: '443'
-      FTLCONF_WEBUIBOXEDLAYOUT: 'boxed'
+      # DNS configuration
       DNSMASQ_LISTENING: 'all'
       # Upstream DNS servers (Cloudflare by default)
       PIHOLE_DNS_: '1.1.1.1;1.0.0.1'

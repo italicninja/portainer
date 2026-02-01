@@ -239,9 +239,9 @@ Special features:
 
 **Pi-hole (Standalone):**
 - Ad-blocking DNS server with web interface
-- Requires `NET_ADMIN` capability for DNS operations
+- Requires `NET_ADMIN`, `SYS_NICE`, and `CHOWN` capabilities
 - Supports HTTPS via self-signed certificates (generated in-container)
-- Security: Rate limiting, privacy controls, resource constraints
+- Resource constraints: 1 CPU, 1GB RAM
 - Ports: 53 (DNS), 8053 (HTTP), 8443 (HTTPS)
 
 **Pi-hole + Vercel (Combined Stack):**
@@ -496,10 +496,10 @@ The `compose/pihole-vercel.yml` stack combines Pi-hole DNS ad-blocking with Verc
 - Uses Vercel's enterprise DNS infrastructure
 
 **Security:**
-- Rate limiting: 1000 queries/60 seconds
 - Resource constraints: 1 CPU, 1GB RAM for Pi-hole
 - HTTPS support with self-signed certificates (generated in-container)
-- Privacy controls: Blocks iCloud Private Relay, enables Mozilla canary
+- Ad blocking and DNS filtering enabled by default
+- Cloudflare upstream DNS (1.1.1.1, 1.0.0.1)
 
 ### Required Environment Variables
 
