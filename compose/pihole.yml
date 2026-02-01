@@ -9,7 +9,6 @@ services:
       - '53:53/udp'
       - "67:67/udp"
       - '8053:80/tcp'
-      - '8443:443/tcp'
     volumes:
       - pihole_etc:/etc/pihole
       - pihole_dnsmasq:/etc/dnsmasq.d
@@ -27,8 +26,6 @@ services:
       WEBPASSWORD: ${PIHOLE_PASSWORD}
       # Vercel DNS domain (if using Vercel for public DNS)
       PIHOLE_DNS_DOMAIN: ${VERCEL_DOMAIN:-}
-      # HTTPS configuration (correct for v6.4.1)
-      FTLCONF_WEBSERVER_PORT: '443'
       # DNS configuration
       DNSMASQ_LISTENING: 'all'
       # Upstream DNS servers (Cloudflare by default)
