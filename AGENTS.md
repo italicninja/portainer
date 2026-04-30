@@ -18,10 +18,11 @@ portainer/
 │   ├── 7dtd.yml               # 7 Days to Die game server
 │   ├── enshrouded.yml         # Enshrouded game server
 │   ├── icarus.yml             # Icarus game server
+│   ├── matrix.yml             # Matrix Synapse homeserver with PostgreSQL, TURN, backups
 │   ├── minecraft-dawncraft.yml    # Minecraft Dawncraft modpack
 │   ├── minecraft-prominence2.yml  # Minecraft Prominence II modpack
 │   ├── minecraft-steampunk.yml    # Minecraft Steampunk modpack
-│   ├── nginx.yml              # Nginx reverse proxy
+│   ├── nginx.yml              # Nginx reverse proxy with Let's Encrypt
 │   ├── pihole.yml             # Pi-hole DNS/ad blocker (standalone)
 │   ├── pihole-vercel.yml      # Pi-hole + Vercel DDNS combined stack
 │   ├── satisfactory.yml       # Satisfactory game server
@@ -30,6 +31,8 @@ portainer/
 │   ├── zomboid.yml            # Project Zomboid game server
 │   └── ...
 ├── env/                       # Environment variable templates (load into Portainer)
+│   ├── .env.matrix.example    # Matrix Synapse configuration
+│   ├── .env.nginx.example     # Nginx reverse proxy configuration
 │   ├── .env.pihole-vercel.example # Pi-hole + Vercel combined stack
 │   ├── .env.vercel-ddns.example   # Vercel DDNS configuration
 │   └── .env.zomboid.example   # Project Zomboid server
@@ -354,9 +357,12 @@ Persistent data is stored under `/data/` on the host:
 | Service | DNS Hostname | IP Address | Notes |
 |---------|-------------|------------|-------|
 | Pi-hole | `pihole.italicninja.com` | `192.168.1.10` | DNS/Ad-blocking server |
+| Matrix | `matrix.italicninja.com` | `192.168.1.10` | Matrix homeserver |
+| Matrix Admin | `admin.matrix.italicninja.com` | `192.168.1.10` | Synapse admin UI |
 | Valheim | `valheim.italicninja.com` | `192.168.1.10` | Game server |
 | Minecraft Dawncraft | `minecraft-dawncraft.italicninja.com` | `192.168.1.10` | Modded Minecraft |
 | Zomboid | `zomboid.italicninja.com` | `192.168.1.10` | Project Zomboid server |
+| Home Assistant | `homeassistant.italicninja.com` | `192.168.1.10` | Home automation platform |
 | Nginx | `nginx.italicninja.com` | `192.168.1.10` | Reverse proxy |
 
 **When Adding a New Service:**
@@ -454,6 +460,7 @@ command:
 - **Change Detection:** Only updates when IP actually changes
 - **Validation:** Tests Vercel authentication on startup
 - **Logging:** Timestamped log messages with prefix
+- **Multi-Subdomain Support:** Manages primary, Pi-hole, and Matrix subdomains simultaneously
 
 ### Configuration
 
@@ -1008,6 +1015,7 @@ docker inspect CONTAINER --format='{{.State.Health.Status}}'
 | Valheim | `compose/valheim.yml` | N/A |
 | Minecraft Dawncraft | `compose/minecraft-dawncraft.yml` | N/A |
 | Nginx Proxy | `compose/nginx.yml` | N/A |
+| Home Assistant | `compose/homeassistant.yml` | `env/.env.homeassistant.example` |
 
 ### Common Ports
 
@@ -1016,6 +1024,11 @@ docker inspect CONTAINER --format='{{.State.Health.Status}}'
 | Pi-hole | 53 | TCP/UDP | DNS queries |
 | Pi-hole | 8053 | TCP | HTTP web interface |
 | Pi-hole | 8443 | TCP | HTTPS web interface |
+| Matrix Synapse | 8008 | TCP | Client API (via nginx HTTPS) |
+| Matrix Federation | 8448 | TCP | Server-to-server federation |
+| Coturn TURN | 3478 | TCP/UDP | STUN/TURN server |
+| Coturn TURN TLS | 5349 | TCP/UDP | TURN over TLS |
+| Coturn Relay | 49152-49172 | UDP | WebRTC relay ports |
 | Valheim | 2456-2458 | UDP | Game traffic |
 | Minecraft | 25565 | TCP | Game connections |
 | Minecraft | 25575 | TCP | RCON administration |
@@ -1028,10 +1041,299 @@ docker inspect CONTAINER --format='{{.State.Health.Status}}'
 - **Service Data:** `/data/SERVICE-NAME/`
 - **Backups:** `/backup/SERVICE-NAME/`
 - **Pi-hole Config:** `pihole_etc` volume (Docker managed)
+- **Matrix PostgreSQL:** `/data/matrix/postgres/`
+- **Matrix Synapse:** `/data/matrix/synapse/`
+- **Matrix Coturn:** `/data/matrix/coturn/`
+- **Matrix Backups:** `/backup/matrix/`
 - **Vercel DDNS Data:** `ddns_data` volume (Docker managed)
 - **Zomboid Data:** `/data/ZomboidConfig/`, `/data/ZomboidDedicatedServer/`
 
 ## Service-Specific Details
+
+### Matrix Synapse Server
+
+**Full-featured Matrix homeserver with comprehensive encryption and security.**
+
+The Matrix stack provides a complete, self-hosted communication platform with end-to-end encryption, federation support, and WebRTC voice/video calls.
+
+**Architecture:**
+- **Matrix Synapse** - Official homeserver implementation
+- **PostgreSQL 16** - Database backend with TLS encryption
+- **Coturn** - TURN server for NAT traversal (voice/video calls)
+- **Synapse Admin UI** - Web-based user/room management
+- **Automated Backups** - PostgreSQL dumps every 6 hours
+- **Nginx Integration** - HTTPS via Let's Encrypt with automatic certificate renewal
+
+**Key Features:**
+- Open registration with reCAPTCHA v2 protection (prevents bot accounts)
+- Matrix federation enabled (communicate with users on other Matrix servers)
+- WebRTC voice/video calls via TURN server
+- End-to-end encryption support
+- Media storage with built-in encryption
+- Rate limiting and sane user quotas
+- Automated database backups with 7-day retention
+
+**Security & Encryption:**
+
+*Transport Encryption:*
+- PostgreSQL ↔ Synapse: TLS/SSL required (`sslmode=require`)
+- Client ↔ Synapse: HTTPS via Let's Encrypt (auto-renewing)
+- Server ↔ Server: TLS on port 8448 (federation)
+- TURN server: TLS on port 5349
+
+*Data at Rest:*
+- Synapse media: Built-in media repository encryption
+- PostgreSQL: Stored in `/data/matrix/postgres` (recommend OS-level encryption)
+- Backups: Stored in `/backup/matrix/` (compressed with gzip)
+
+*Access Control:*
+- Registration: reCAPTCHA v2 required
+- Rate limiting: Prevents abuse and spam
+- Admin interface: Authentication required
+- PostgreSQL: Internal network only, never exposed
+
+**Rate Limiting & User Quotas (Sane Defaults):**
+- Message rate: 1/sec sustained, 10 message burst
+- Registration: 3 accounts/hour per IP address
+- Login attempts: 3 per account before rate limit
+- Room joins: 0.1/sec local, 0.01/sec remote
+- Max upload size: 50MB per file
+- Max image pixels: 32M (prevents large image attacks)
+- Max concurrent connections: 500 per IP
+
+**Required Environment Variables:**
+- `POSTGRES_PASSWORD` - Database password (generate with: `openssl rand -hex 32`)
+- `RECAPTCHA_PUBLIC_KEY` - reCAPTCHA site key (from Google reCAPTCHA admin)
+- `RECAPTCHA_PRIVATE_KEY` - reCAPTCHA secret key
+- `REGISTRATION_SHARED_SECRET` - For creating admin users via CLI
+- `MACAROON_SECRET_KEY` - Session security (generate random)
+- `FORM_SECRET` - Form security (generate random)
+- `TURN_SHARED_SECRET` - TURN authentication (generate random)
+- `ADMIN_EMAIL` - Email for Let's Encrypt certificate notifications
+
+**Ports & Port Forwarding:**
+
+*Required firewall port forwards:*
+- 80/TCP → 192.168.1.10:80 (HTTP, Let's Encrypt validation)
+- 443/TCP → 192.168.1.10:443 (HTTPS, nginx reverse proxy)
+- 8448/TCP → 192.168.1.10:8448 (Matrix federation, direct to Synapse)
+- 3478/TCP+UDP → 192.168.1.10:3478 (TURN server)
+- 5349/TCP+UDP → 192.168.1.10:5349 (TURN server TLS)
+- 49152-49172/UDP → 192.168.1.10:49152-49172 (TURN relay ports for WebRTC)
+
+*Note:* Ports 80 and 443 are shared with other services via nginx reverse proxy.
+
+**DNS Configuration:**
+
+*Pi-hole Local DNS (manual):*
+- `matrix.italicninja.com` → `192.168.1.10`
+- `admin.matrix.italicninja.com` → `192.168.1.10`
+
+*Vercel Public DNS (automatic via enhanced vercel-ddns):*
+- A record: `matrix.italicninja.com` → YOUR_PUBLIC_IP
+- A record: `admin.matrix.italicninja.com` → YOUR_PUBLIC_IP
+- Set `MATRIX_SUBDOMAIN=matrix` and `MATRIX_ADMIN_SUBDOMAIN=admin.matrix` in pihole-vercel stack
+
+*Vercel SRV Record (MANUAL - required for federation):*
+- Name: `_matrix._tcp.italicninja.com`
+- Type: SRV
+- Priority: 10, Weight: 0, Port: 8448
+- Target: `matrix.italicninja.com`
+- Note: Must be added manually in Vercel dashboard (vercel-ddns does not support SRV records)
+
+*Well-Known Delegation:*
+- Served automatically by nginx at `/.well-known/matrix/server` and `/.well-known/matrix/client`
+- Enables clean federation and Matrix ID format (`@user:italicninja.com`)
+
+**Storage & Resource Requirements:**
+
+*Resource Allocation:*
+- Synapse: 2 CPU, 4GB RAM, 2GB reserved
+- PostgreSQL: 1 CPU, 2GB RAM, 1GB reserved
+- Coturn: 1 CPU, 1GB RAM
+- Others (Admin UI, Backup): <512MB each
+- **Total: ~4.4 CPU, ~7.4GB RAM**
+
+*Disk Storage:*
+- Initial: ~1GB
+- Growth estimates (based on usage):
+  - Light (5-10 users): +1-2GB/month
+  - Medium (20-50 users): +5-10GB/month
+  - Heavy (100+ users): +20-50GB/month
+- Recommendation: Allocate at least 100GB for `/data/matrix/` partition
+
+*Storage Paths:*
+- `/data/matrix/postgres/` - PostgreSQL database files
+- `/data/matrix/synapse/` - Synapse config, media, uploads
+- `/data/matrix/coturn/` - TURN server config
+- `/backup/matrix/` - Compressed PostgreSQL backups (7-day retention)
+
+**Federation:**
+
+Matrix federation allows your server to communicate with users on other Matrix servers (e.g., matrix.org).
+
+*Testing Federation:*
+1. Visit: https://federationtester.matrix.org/
+2. Enter your domain: `italicninja.com`
+3. Verify all checks pass (green checkmarks)
+
+*Common Federation Issues:*
+- SRV record not found → Check Vercel DNS SRV record
+- Port 8448 unreachable → Check firewall port forward
+- Certificate errors → Wait for Let's Encrypt provisioning (can take 5-10 minutes)
+
+**Backup Strategy:**
+
+- Automated `pg_dump` runs every 6 hours (configurable via `BACKUP_SCHEDULE`)
+- Backups compressed with gzip (typically 80%+ compression)
+- 7-day retention policy (older backups auto-deleted)
+- Stored in `/backup/matrix/` with timestamp: `matrix_backup_YYYYMMDD_HHMMSS.sql.gz`
+- Manual trigger: `docker exec matrix-backup /usr/local/bin/backup.sh`
+- Logs written to container stdout (view with `docker logs matrix-backup`)
+
+*Backup Restoration:*
+```bash
+# Stop Synapse
+docker stop matrix-synapse
+
+# Restore backup
+gunzip < /backup/matrix/matrix_backup_YYYYMMDD_HHMMSS.sql.gz | \
+  docker exec -i matrix-postgres psql -U synapse -d synapse
+
+# Start Synapse
+docker start matrix-synapse
+```
+
+**Post-Deployment Steps:**
+
+1. **Create First Admin User:**
+   ```bash
+   docker exec -it matrix-synapse register_new_matrix_user \
+     -c /data/homeserver.yaml -a http://localhost:8008
+   ```
+   Enter username, password, and confirm admin privileges.
+   Your Matrix ID will be: `@username:italicninja.com`
+
+2. **Access Admin Interface:**
+   - URL: `https://admin.matrix.italicninja.com`
+   - Login with admin credentials from step 1
+   - Manage users, rooms, and server settings
+
+3. **Test Registration:**
+   - Download Element app (https://element.io) or use web client
+   - Connect to homeserver: `matrix.italicninja.com`
+   - Create account with reCAPTCHA verification
+
+4. **Test Voice/Video Calls:**
+   - Create room with another user
+   - Start voice or video call
+   - Verify WebRTC connection via TURN server
+
+5. **Verify Backups:**
+   - Wait 6 hours or manually trigger backup
+   - Check files: `ls -lh /backup/matrix/`
+   - Verify backup logs: `docker logs matrix-backup`
+
+**Monitoring & Maintenance:**
+
+*Check Service Health:*
+```bash
+# All containers healthy
+docker ps | grep matrix
+
+# PostgreSQL SSL enabled
+docker exec matrix-postgres psql -U synapse -c "SHOW ssl;"
+
+# Synapse health endpoint
+curl http://localhost:8008/health
+```
+
+*Monitor Storage Growth:*
+```bash
+# Media store size
+du -sh /data/matrix/synapse/media_store
+
+# Database size
+docker exec matrix-postgres psql -U synapse -c "\l+"
+
+# Backup storage
+du -sh /backup/matrix/
+```
+
+*Update Containers:*
+1. In Portainer: Stacks → matrix → "Pull and redeploy"
+2. Monitor logs for any issues
+3. Verify federation still works after update
+
+**Integration with Other Services:**
+
+*Nginx Reverse Proxy:*
+- Matrix connects to `web_network` for nginx integration
+- Nginx handles HTTPS termination with Let's Encrypt
+- Container labels configure automatic reverse proxy:
+  - `VIRTUAL_HOST=matrix.italicninja.com`
+  - `LETSENCRYPT_HOST=matrix.italicninja.com`
+- Well-known delegation files served by nginx
+
+*Vercel DDNS Integration:*
+- Enhanced vercel-ddns automatically creates Matrix A records
+- Updates public IP when changed (every 5 minutes check)
+- Manages both `matrix` and `admin.matrix` subdomains
+- SRV record must still be added manually
+
+**Troubleshooting:**
+
+*PostgreSQL SSL not working:*
+```bash
+docker exec matrix-postgres psql -U synapse -c "SHOW ssl;"
+# Should return "on"
+```
+
+*Synapse not starting:*
+```bash
+docker logs matrix-synapse
+# Check for database connection errors or config issues
+```
+
+*Federation not working:*
+- Verify SRV record: `dig _matrix._tcp.italicninja.com SRV`
+- Test port 8448: `curl https://matrix.italicninja.com:8448`
+- Use federation tester: https://federationtester.matrix.org/
+
+*TURN server not working:*
+```bash
+docker logs matrix-coturn
+# Check for IP detection errors
+# Verify UDP ports are forwarded (not just TCP)
+```
+
+*Let's Encrypt certificate issues:*
+```bash
+docker logs nginx-proxy-acme
+# Check for rate limiting or validation errors
+# Verify ports 80/443 are accessible from internet
+```
+
+*Registration captcha not showing:*
+- Verify reCAPTCHA keys in environment variables
+- Check browser console for JavaScript errors
+- Ensure domain in reCAPTCHA config matches deployment
+
+**Future Enhancements:**
+
+The Matrix stack is designed for extensibility:
+- Bridges (Discord, Telegram, Signal) can be added as additional services
+- Element Web client can be deployed as separate stack
+- Media cleanup service for automatic pruning of old media
+- Monitoring with Prometheus/Grafana
+- Email notifications for account recovery
+
+**Documentation:**
+- Environment template: `env/.env.matrix.example`
+- Compose file: `compose/matrix.yml`
+- Deployment guide: See .env.matrix.example for step-by-step instructions
+
+---
 
 ### Project Zomboid Server
 

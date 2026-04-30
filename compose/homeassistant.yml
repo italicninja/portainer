@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:${IMAGE_TAG:-stable}
+    container_name: homeassistant
+    network_mode: host
+    volumes:
+      - homeassistant_config:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      TZ: ${TZ:-America/Vancouver}
+    privileged: true
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=homeautomation"
+      - "com.docker.compose.service=homeassistant"
+    restart: unless-stopped
+
+volumes:
+  homeassistant_config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/homeassistant/config
