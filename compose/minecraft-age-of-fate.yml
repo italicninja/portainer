@@ -10,6 +10,7 @@ services:
       DEBUG: "${DEBUG:-false}"
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: age-of-fate
+      CURSEFORGE_FILES: chunky-pregenerator-forge
       INIT_MEMORY: 8G
       MAX_MEMORY: 24G
       USE_AIKAR_FLAGS: true
