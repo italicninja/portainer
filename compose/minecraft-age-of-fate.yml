@@ -16,6 +16,7 @@ services:
       MOTD: Running %MODPACK_NAME% version %env:MODPACK_VERSION%
       LEVEL: age-of-fate-world
       LEVEL_TYPE: minecraft:large_biomes
+      MAX_TICK_TIME: "-1"
       RCON_PASSWORD: ${RCON_PASSWORD}
       CUSTOM_SERVER_PROPERTIES: |-
         allow-flight=true
