@@ -1,0 +1,608 @@
+version: '3.8'
+
+# Matrix Synapse Homeserver Stack
+# This configuration includes PostgreSQL, Synapse, Admin UI, Coturn TURN server, and automated backups
+# All services are encrypted and integrated with nginx reverse proxy for HTTPS
+
+services:
+  # PostgreSQL database with TLS encryption
+  postgres:
+    image: postgres:16-alpine
+    container_name: matrix-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-synapse}
+      POSTGRES_USER: ${POSTGRES_USER:-synapse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      TZ: ${TZ:-America/Vancouver}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command:
+      - sh
+      - -c
+      - |
+        # Generate SSL certificates for PostgreSQL if not exists
+        if [ ! -f /var/lib/postgresql/data/server.crt ]; then
+          echo "Generating PostgreSQL SSL certificate..."
+          
+          # Wait for data directory to be initialized
+          if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+            echo "Initializing PostgreSQL data directory..."
+            docker-entrypoint.sh postgres &
+            PG_PID=$$!
+            sleep 15
+            kill $$PG_PID 2>/dev/null || true
+            wait $$PG_PID 2>/dev/null || true
+          fi
+          
+          # Generate self-signed certificate
+          openssl req -new -x509 -days 3650 -nodes -text \
+            -out /var/lib/postgresql/data/server.crt \
+            -keyout /var/lib/postgresql/data/server.key \
+            -subj "/CN=matrix-postgres"
+          
+          chmod 600 /var/lib/postgresql/data/server.key
+          chown postgres:postgres /var/lib/postgresql/data/server.crt 2>/dev/null || true
+          chown postgres:postgres /var/lib/postgresql/data/server.key 2>/dev/null || true
+          
+          echo "PostgreSQL SSL certificate generated"
+        fi
+        
+        # Configure PostgreSQL for SSL
+        cat >> /var/lib/postgresql/data/postgresql.conf << 'PGCONF'
+        # SSL Configuration
+        ssl = on
+        ssl_cert_file = 'server.crt'
+        ssl_key_file = 'server.key'
+        ssl_prefer_server_ciphers = on
+        ssl_ciphers = 'HIGH:MEDIUM:+3DES:!aNULL'
+        PGCONF
+        
+        # Require SSL for all connections
+        cat > /var/lib/postgresql/data/pg_hba.conf << 'PGHBA'
+        # TYPE  DATABASE        USER            ADDRESS                 METHOD
+        local   all             all                                     trust
+        hostssl all             all             0.0.0.0/0               scram-sha-256
+        hostssl all             all             ::/0                    scram-sha-256
+        PGHBA
+        
+        echo "PostgreSQL SSL configured, starting server..."
+        exec docker-entrypoint.sh postgres
+    networks:
+      - matrix_network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-synapse}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=matrix-postgres"
+    restart: unless-stopped
+
+  # Matrix Synapse homeserver
+  synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: matrix-synapse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SYNAPSE_SERVER_NAME: ${MATRIX_SERVER_NAME:-italicninja.com}
+      SYNAPSE_REPORT_STATS: "no"
+      SYNAPSE_NO_TLS: "true"
+      TZ: ${TZ:-America/Vancouver}
+      UID: 991
+      GID: 991
+    volumes:
+      - synapse_data:/data
+    ports:
+      - "8448:8448"  # Federation port (direct, bypasses nginx)
+    command:
+      - bash
+      - -c
+      - |
+        echo "Starting Matrix Synapse configuration..."
+        
+        # Generate homeserver config if not exists
+        if [ ! -f /data/homeserver.yaml ]; then
+          echo "Generating homeserver configuration..."
+          python -m synapse.app.homeserver \
+            --server-name=${MATRIX_SERVER_NAME:-italicninja.com} \
+            --config-path=/data/homeserver.yaml \
+            --generate-config \
+            --report-stats=no
+          
+          # Update configuration with custom settings
+          cat >> /data/homeserver.yaml << 'SYNAPSECONF'
+        
+        # Database configuration (PostgreSQL with TLS)
+        database:
+          name: psycopg2
+          args:
+            host: postgres
+            port: 5432
+            user: ${POSTGRES_USER:-synapse}
+            password: ${POSTGRES_PASSWORD}
+            database: ${POSTGRES_DB:-synapse}
+            sslmode: require
+            cp_min: 5
+            cp_max: 10
+        
+        # Public base URL
+        public_baseurl: https://matrix.${MATRIX_DOMAIN:-italicninja.com}
+        
+        # Registration with reCAPTCHA
+        enable_registration: ${ENABLE_REGISTRATION:-true}
+        enable_registration_captcha: true
+        recaptcha_public_key: "${RECAPTCHA_PUBLIC_KEY}"
+        recaptcha_private_key: "${RECAPTCHA_PRIVATE_KEY}"
+        registration_requires_token: false
+        enable_registration_without_verification: true
+        registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
+        
+        # Rate limiting - sane defaults
+        rc_message:
+          per_second: 1
+          burst_count: 10
+        
+        rc_registration:
+          per_second: 0.0008
+          burst_count: 3
+        
+        rc_login:
+          address:
+            per_second: 0.17
+            burst_count: 3
+          account:
+            per_second: 0.17
+            burst_count: 3
+        
+        rc_admin_redaction:
+          per_second: 1
+          burst_count: 50
+        
+        rc_joins:
+          local:
+            per_second: 0.1
+            burst_count: 10
+          remote:
+            per_second: 0.01
+            burst_count: 10
+        
+        # Upload limits
+        max_upload_size: ${MAX_UPLOAD_SIZE:-50M}
+        max_image_pixels: 32M
+        max_avatar_size: 10M
+        
+        # Federation
+        federation_domain_whitelist: null
+        federation_ip_range_blacklist:
+          - '127.0.0.0/8'
+          - '10.0.0.0/8'
+          - '172.16.0.0/12'
+          - '192.168.0.0/16'
+        
+        # TURN server configuration
+        turn_uris:
+          - "turn:${TURN_REALM:-turn.italicninja.com}:3478?transport=udp"
+          - "turn:${TURN_REALM:-turn.italicninja.com}:3478?transport=tcp"
+          - "turns:${TURN_REALM:-turn.italicninja.com}:5349?transport=tcp"
+        turn_shared_secret: "${TURN_SHARED_SECRET}"
+        turn_user_lifetime: 1h
+        turn_allow_guests: true
+        
+        # Media storage
+        media_store_path: "/data/media_store"
+        enable_media_repo: true
+        max_spider_size: 10M
+        dynamic_thumbnails: false
+        
+        # URL preview
+        url_preview_enabled: true
+        url_preview_ip_range_blacklist:
+          - '127.0.0.0/8'
+          - '10.0.0.0/8'
+          - '172.16.0.0/12'
+          - '192.168.0.0/16'
+        
+        # Security
+        macaroon_secret_key: "${MACAROON_SECRET_KEY}"
+        form_secret: "${FORM_SECRET}"
+        
+        # Reverse proxy support (nginx)
+        x_forwarded: true
+        
+        # Listeners
+        listeners:
+          - port: 8008
+            tls: false
+            type: http
+            x_forwarded: true
+            bind_addresses: ['0.0.0.0']
+            resources:
+              - names: [client, federation]
+                compress: false
+          
+          - port: 8448
+            tls: false
+            type: http
+            x_forwarded: false
+            bind_addresses: ['0.0.0.0']
+            resources:
+              - names: [federation]
+        SYNAPSECONF
+          
+          # Replace placeholders in config
+          sed -i "s|\${POSTGRES_USER:-synapse}|${POSTGRES_USER:-synapse}|g" /data/homeserver.yaml
+          sed -i "s|\${POSTGRES_PASSWORD}|${POSTGRES_PASSWORD}|g" /data/homeserver.yaml
+          sed -i "s|\${POSTGRES_DB:-synapse}|${POSTGRES_DB:-synapse}|g" /data/homeserver.yaml
+          sed -i "s|\${MATRIX_DOMAIN:-italicninja.com}|${MATRIX_DOMAIN:-italicninja.com}|g" /data/homeserver.yaml
+          sed -i "s|\${ENABLE_REGISTRATION:-true}|${ENABLE_REGISTRATION:-true}|g" /data/homeserver.yaml
+          sed -i "s|\${RECAPTCHA_PUBLIC_KEY}|${RECAPTCHA_PUBLIC_KEY}|g" /data/homeserver.yaml
+          sed -i "s|\${RECAPTCHA_PRIVATE_KEY}|${RECAPTCHA_PRIVATE_KEY}|g" /data/homeserver.yaml
+          sed -i "s|\${REGISTRATION_SHARED_SECRET}|${REGISTRATION_SHARED_SECRET}|g" /data/homeserver.yaml
+          sed -i "s|\${MAX_UPLOAD_SIZE:-50M}|${MAX_UPLOAD_SIZE:-50M}|g" /data/homeserver.yaml
+          sed -i "s|\${TURN_REALM:-turn.italicninja.com}|${TURN_REALM:-turn.italicninja.com}|g" /data/homeserver.yaml
+          sed -i "s|\${TURN_SHARED_SECRET}|${TURN_SHARED_SECRET}|g" /data/homeserver.yaml
+          sed -i "s|\${MACAROON_SECRET_KEY}|${MACAROON_SECRET_KEY}|g" /data/homeserver.yaml
+          sed -i "s|\${FORM_SECRET}|${FORM_SECRET}|g" /data/homeserver.yaml
+          
+          echo "Homeserver configuration generated successfully"
+        fi
+        
+        echo "Starting Synapse homeserver..."
+        exec python -m synapse.app.homeserver -c /data/homeserver.yaml
+    networks:
+      - matrix_network
+      - web_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=matrix-synapse"
+      # Nginx proxy auto-config
+      - "VIRTUAL_HOST=matrix.${MATRIX_DOMAIN:-italicninja.com}"
+      - "VIRTUAL_PORT=8008"
+      - "LETSENCRYPT_HOST=matrix.${MATRIX_DOMAIN:-italicninja.com}"
+      - "LETSENCRYPT_EMAIL=${ADMIN_EMAIL:-admin@example.com}"
+    restart: unless-stopped
+
+  # Synapse Admin UI
+  synapse-admin:
+    image: awesometechnologies/synapse-admin:latest
+    container_name: matrix-admin
+    depends_on:
+      - synapse
+    environment:
+      REACT_APP_SERVER: "https://matrix.${MATRIX_DOMAIN:-italicninja.com}"
+    networks:
+      - web_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=matrix-admin"
+      - "VIRTUAL_HOST=admin.matrix.${MATRIX_DOMAIN:-italicninja.com}"
+      - "VIRTUAL_PORT=80"
+      - "LETSENCRYPT_HOST=admin.matrix.${MATRIX_DOMAIN:-italicninja.com}"
+      - "LETSENCRYPT_EMAIL=${ADMIN_EMAIL:-admin@example.com}"
+    restart: unless-stopped
+
+  # Coturn TURN server for WebRTC (voice/video calls)
+  coturn:
+    image: coturn/coturn:latest
+    container_name: matrix-coturn
+    network_mode: host
+    volumes:
+      - coturn_data:/var/lib/coturn
+    command:
+      - sh
+      - -c
+      - |
+        echo "Starting Coturn TURN server configuration..."
+        
+        # Auto-detect public IP if not set
+        if [ -z "$${TURN_EXTERNAL_IP}" ]; then
+          echo "Auto-detecting public IP..."
+          TURN_EXTERNAL_IP=$$(curl -s https://ipv4.icanhazip.com || echo "")
+          if [ -z "$${TURN_EXTERNAL_IP}" ]; then
+            echo "WARNING: Could not auto-detect public IP, using 0.0.0.0"
+            TURN_EXTERNAL_IP="0.0.0.0"
+          else
+            echo "Detected public IP: $${TURN_EXTERNAL_IP}"
+          fi
+        fi
+        
+        # Generate turnserver.conf
+        cat > /etc/coturn/turnserver.conf << 'TURNCONF'
+        # TURN server configuration for Matrix
+        listening-port=3478
+        tls-listening-port=5349
+        min-port=49152
+        max-port=49172
+        
+        fingerprint
+        lt-cred-mech
+        use-auth-secret
+        static-auth-secret=${TURN_SHARED_SECRET}
+        realm=${TURN_REALM:-turn.italicninja.com}
+        
+        total-quota=100
+        stale-nonce=600
+        
+        # Network
+        external-ip=${TURN_EXTERNAL_IP}
+        relay-ip=${TURN_EXTERNAL_IP}
+        
+        # Logging
+        verbose
+        log-file=stdout
+        
+        # Security
+        no-cli
+        no-tlsv1
+        no-tlsv1_1
+        no-stdout-log
+        TURNCONF
+        
+        # Replace placeholders
+        sed -i "s|\$${TURN_SHARED_SECRET}|${TURN_SHARED_SECRET}|g" /etc/coturn/turnserver.conf
+        sed -i "s|\$${TURN_REALM:-turn.italicninja.com}|${TURN_REALM:-turn.italicninja.com}|g" /etc/coturn/turnserver.conf
+        sed -i "s|\$${TURN_EXTERNAL_IP}|$${TURN_EXTERNAL_IP}|g" /etc/coturn/turnserver.conf
+        
+        # Generate self-signed certificate for TURN TLS if not exists
+        if [ ! -f /var/lib/coturn/turn_server_cert.pem ]; then
+          echo "Generating TURN server certificate..."
+          openssl req -x509 -newkey rsa:4096 \
+            -keyout /var/lib/coturn/turn_server_pkey.pem \
+            -out /var/lib/coturn/turn_server_cert.pem \
+            -days 3650 -nodes \
+            -subj "/CN=${TURN_REALM:-turn.italicninja.com}"
+          echo "cert=/var/lib/coturn/turn_server_cert.pem" >> /etc/coturn/turnserver.conf
+          echo "pkey=/var/lib/coturn/turn_server_pkey.pem" >> /etc/coturn/turnserver.conf
+        fi
+        
+        echo "Starting TURN server..."
+        exec turnserver -c /etc/coturn/turnserver.conf
+    environment:
+      TURN_SHARED_SECRET: ${TURN_SHARED_SECRET}
+      TURN_REALM: ${TURN_REALM:-turn.italicninja.com}
+      TURN_EXTERNAL_IP: ${TURN_EXTERNAL_IP:-}
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=matrix-coturn"
+    restart: unless-stopped
+
+  # Well-known delegation files setup (one-time)
+  wellknown-setup:
+    image: alpine:latest
+    container_name: matrix-wellknown
+    command:
+      - sh
+      - -c
+      - |
+        echo "Creating Matrix well-known delegation files..."
+        
+        # Create directory structure
+        mkdir -p /usr/share/nginx/html/.well-known/matrix
+        
+        # Create server delegation file
+        cat > /usr/share/nginx/html/.well-known/matrix/server << 'WELLKNOWN_SERVER'
+        {"m.server": "matrix.${MATRIX_DOMAIN:-italicninja.com}:8448"}
+        WELLKNOWN_SERVER
+        
+        # Create client delegation file
+        cat > /usr/share/nginx/html/.well-known/matrix/client << 'WELLKNOWN_CLIENT'
+        {"m.homeserver": {"base_url": "https://matrix.${MATRIX_DOMAIN:-italicninja.com}"}}
+        WELLKNOWN_CLIENT
+        
+        # Replace placeholders
+        sed -i "s|\$${MATRIX_DOMAIN:-italicninja.com}|${MATRIX_DOMAIN:-italicninja.com}|g" /usr/share/nginx/html/.well-known/matrix/server
+        sed -i "s|\$${MATRIX_DOMAIN:-italicninja.com}|${MATRIX_DOMAIN:-italicninja.com}|g" /usr/share/nginx/html/.well-known/matrix/client
+        
+        echo "Well-known files created successfully:"
+        cat /usr/share/nginx/html/.well-known/matrix/server
+        cat /usr/share/nginx/html/.well-known/matrix/client
+        
+        echo "Setup complete, exiting..."
+        exit 0
+    environment:
+      MATRIX_DOMAIN: ${MATRIX_DOMAIN:-italicninja.com}
+    volumes:
+      - nginx_html:/usr/share/nginx/html
+    networks:
+      - web_network
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=matrix-wellknown"
+
+  # Automated backup service
+  backup:
+    image: postgres:16-alpine
+    container_name: matrix-backup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-synapse}
+      POSTGRES_USER: ${POSTGRES_USER:-synapse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 */6 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+      TZ: ${TZ:-America/Vancouver}
+    volumes:
+      - backup_data:/backups
+    command:
+      - sh
+      - -c
+      - |
+        echo "Starting Matrix PostgreSQL backup service..."
+        
+        # Install crond for scheduling
+        apk add --no-cache dcron
+        
+        # Create backup script
+        cat > /usr/local/bin/backup.sh << 'BACKUPSCRIPT'
+        #!/bin/sh
+        set -e
+        
+        BACKUP_DIR="/backups"
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+        BACKUP_FILE="$${BACKUP_DIR}/matrix_backup_$${TIMESTAMP}.sql.gz"
+        
+        echo "[$(date)] Starting PostgreSQL backup..."
+        
+        # Wait for PostgreSQL to be ready
+        until pg_isready -h $${POSTGRES_HOST} -U $${POSTGRES_USER} >/dev/null 2>&1; do
+          echo "Waiting for PostgreSQL..."
+          sleep 5
+        done
+        
+        # Create backup
+        if pg_dump -h $${POSTGRES_HOST} -U $${POSTGRES_USER} -d $${POSTGRES_DB} | gzip > $${BACKUP_FILE}; then
+          BACKUP_SIZE=$$(du -h $${BACKUP_FILE} | cut -f1)
+          echo "[$(date)] ✅ Backup completed: $${BACKUP_FILE} ($${BACKUP_SIZE})"
+          
+          # Rotate old backups
+          DELETED=$$(find $${BACKUP_DIR} -name "matrix_backup_*.sql.gz" -mtime +$${BACKUP_RETENTION_DAYS} -delete -print | wc -l)
+          if [ $${DELETED} -gt 0 ]; then
+            echo "[$(date)] Removed $${DELETED} backups older than $${BACKUP_RETENTION_DAYS} days"
+          fi
+          
+          # Show backup statistics
+          TOTAL_BACKUPS=$$(find $${BACKUP_DIR} -name "matrix_backup_*.sql.gz" | wc -l)
+          TOTAL_SIZE=$$(du -sh $${BACKUP_DIR} | cut -f1)
+          echo "[$(date)] Total backups: $${TOTAL_BACKUPS}, Total size: $${TOTAL_SIZE}"
+        else
+          echo "[$(date)] ❌ Backup failed!"
+          exit 1
+        fi
+        BACKUPSCRIPT
+        
+        chmod +x /usr/local/bin/backup.sh
+        
+        # Setup cron job
+        echo "$${BACKUP_SCHEDULE} /usr/local/bin/backup.sh >> /var/log/backup.log 2>&1" > /etc/crontabs/root
+        
+        echo "Backup service configured with schedule: $${BACKUP_SCHEDULE}"
+        echo "Retention: $${BACKUP_RETENTION_DAYS} days"
+        
+        # Run initial backup
+        echo "Running initial backup..."
+        /usr/local/bin/backup.sh
+        
+        # Start cron in foreground
+        echo "Starting cron daemon..."
+        exec crond -f -l 2
+    networks:
+      - matrix_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=matrix-backup"
+    restart: unless-stopped
+
+networks:
+  matrix_network:
+    driver: bridge
+    name: matrix_network
+  web_network:
+    external: true
+    name: web_network
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/matrix/postgres
+  
+  synapse_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/matrix/synapse
+  
+  coturn_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/matrix/coturn
+  
+  backup_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /backup/matrix
+  
+  nginx_html:
+    external: true
+    name: nginx_html

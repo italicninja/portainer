@@ -75,6 +75,9 @@ services:
       VERCEL_RECORD_TYPE: ${VERCEL_RECORD_TYPE:-A}
       # Additional DNS records for Pi-hole subdomain
       PIHOLE_SUBDOMAIN: ${PIHOLE_SUBDOMAIN:-pihole}
+      # Additional DNS records for Matrix services
+      MATRIX_SUBDOMAIN: ${MATRIX_SUBDOMAIN:-}
+      MATRIX_ADMIN_SUBDOMAIN: ${MATRIX_ADMIN_SUBDOMAIN:-}
       # Check interval in seconds (300 = 5 minutes)
       CHECK_INTERVAL: ${CHECK_INTERVAL:-300}
       # Optional: Set timezone
@@ -230,6 +233,26 @@ services:
                                 log "Pi-hole DNS record updated successfully"
                             else
                                 log "WARNING: Failed to update Pi-hole DNS record"
+                            fi
+                        fi
+                        
+                        # Update Matrix subdomain if configured
+                        if [ -n "$${MATRIX_SUBDOMAIN}" ]; then
+                            log "Updating Matrix subdomain: $${MATRIX_SUBDOMAIN}.$${VERCEL_DOMAIN}"
+                            if update_vercel_record "$${VERCEL_DOMAIN}" "$${MATRIX_SUBDOMAIN}" "A" "$${current_ip}"; then
+                                log "Matrix DNS record updated successfully"
+                            else
+                                log "WARNING: Failed to update Matrix DNS record"
+                            fi
+                        fi
+                        
+                        # Update Matrix Admin subdomain if configured
+                        if [ -n "$${MATRIX_ADMIN_SUBDOMAIN}" ]; then
+                            log "Updating Matrix Admin subdomain: $${MATRIX_ADMIN_SUBDOMAIN}.$${VERCEL_DOMAIN}"
+                            if update_vercel_record "$${VERCEL_DOMAIN}" "$${MATRIX_ADMIN_SUBDOMAIN}" "A" "$${current_ip}"; then
+                                log "Matrix Admin DNS record updated successfully"
+                            else
+                                log "WARNING: Failed to update Matrix Admin DNS record"
                             fi
                         fi
                         

@@ -37,20 +37,40 @@ services:
       - "com.docker.compose.service=nginx-proxy"
     restart: unless-stopped
 
-  # Optional: Add Let's Encrypt companion container
-  # letsencrypt:
-  #   image: nginxproxy/acme-companion:2.2
-  #   container_name: nginx-proxy-acme
-  #   volumes_from:
-  #     - nginx-proxy
-  #   volumes:
-  #     - '/var/run/docker.sock:/var/run/docker.sock:ro'
-  #     - 'acme:/etc/acme.sh'
-  #   environment:
-  #     DEFAULT_EMAIL: your-email@example.com
-  #   depends_on:
-  #     - nginx-proxy
-  #   restart: unless-stopped
+  # Let's Encrypt companion container for automatic HTTPS certificates
+  letsencrypt:
+    image: nginxproxy/acme-companion:2.2
+    container_name: nginx-proxy-acme
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - 'acme:/etc/acme.sh'
+    environment:
+      DEFAULT_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+    depends_on:
+      - nginx-proxy
+    networks:
+      - web_network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/letsencrypt_service"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    labels:
+      - "com.docker.compose.project=networking"
+      - "com.docker.compose.service=letsencrypt"
+    restart: unless-stopped
 
 networks:
   web_network:
@@ -63,5 +83,5 @@ volumes:
     driver: local
   nginx_html:
     driver: local
-  # acme:
-  #   driver: local
+  acme:
+    driver: local
