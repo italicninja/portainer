@@ -11,8 +11,8 @@ services:
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: age-of-fate
       CURSEFORGE_FILES: biomesize
-      INIT_MEMORY: 16G
-      MAX_MEMORY: 16G
+      INIT_MEMORY: 22G
+      MAX_MEMORY: 22G
       USE_AIKAR_FLAGS: "false"
       JVM_XX_OPTS: >-
         -XX:+UseG1GC
