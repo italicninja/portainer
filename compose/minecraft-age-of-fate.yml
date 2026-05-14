@@ -25,9 +25,7 @@ services:
         spawn-protection=false
         white-list=true
         enforce-whitelist=true
-      RCON_CMDS_STARTUP:  |-
-        /gamerule doFireTick false
-        /gamerule mobGriefing false
+      #RCON_CMDS_STARTUP:
       #RCON_CMDS_FIRST_CONNECT:
       #RCON_CMDS_LAST_DISCONNECT:
     ports:
