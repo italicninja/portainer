@@ -11,8 +11,8 @@ services:
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: age-of-fate
       CURSEFORGE_FILES: biomesize
-      INIT_MEMORY: 8G
-      MAX_MEMORY: 24G
+      INIT_MEMORY: 4G
+      MAX_MEMORY: 16G
       USE_AIKAR_FLAGS: true
       MOTD: Running %MODPACK_NAME% version %env:MODPACK_VERSION%
       LEVEL: age-of-fate-world
@@ -39,9 +39,9 @@ services:
       resources:
         limits:
           cpus: '10'
-          memory: 24G
+          memory: 16G
         reservations:
-          memory: 8G
+          memory: 4G
     healthcheck:
       test: ["CMD", "mc-status", "--host", "localhost"]
       interval: 60s
