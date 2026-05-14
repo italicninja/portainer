@@ -44,7 +44,8 @@ services:
         spawn-protection=false
         white-list=true
         enforce-whitelist=true
-      #RCON_CMDS_STARTUP:
+      RCON_CMDS_STARTUP: |-
+        /spark sampler stop
       #RCON_CMDS_FIRST_CONNECT:
       #RCON_CMDS_LAST_DISCONNECT:
     ports:
