@@ -11,7 +11,7 @@ services:
       CF_API_KEY: ${CF_API_KEY}
       CF_SLUG: age-of-fate
       CURSEFORGE_FILES: biomesize
-      INIT_MEMORY: 4G
+      INIT_MEMORY: 16G
       MAX_MEMORY: 16G
       USE_AIKAR_FLAGS: true
       MOTD: Running %MODPACK_NAME% version %env:MODPACK_VERSION%
@@ -33,13 +33,6 @@ services:
       - "127.0.0.1:25575:25575"
     networks:
       - minecraft_network
-    deploy:
-      resources:
-        limits:
-          cpus: '10'
-          memory: 16G
-        reservations:
-          memory: 4G
     healthcheck:
       test: ["CMD", "mc-status", "--host", "localhost"]
       interval: 60s
@@ -56,45 +49,45 @@ services:
       - "com.docker.compose.service=minecraft-age-of-fate"
     restart: unless-stopped
 
-  mc-backup:
-    image: instrumentisto/rsync-ssh:alpine
-    container_name: minecraft-age-of-fate-backup
-    depends_on:
-      - mc
-    environment:
-      # Advanced Backups mod handles the actual world snapshotting + RCON pause;
-      # this sidecar just mirrors its output off-volume on an interval.
-      BACKUP_INTERVAL: "7200"          # seconds between rsync runs (2h)
-      PRUNE_DAYS: "7"                  # delete mirrored archives older than N days
-      SOURCE: "/data/backups/"         # Advanced Backups output dir inside the world data
-      DEST: "/backup/current/"         # rsync mirror destination
-    volumes:
-      - minecraft_age_of_fate_data:/data:ro
-      - minecraft_age_of_fate_backups:/backup
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        mkdir -p "$$DEST"
-        while true; do
-          echo "[$$(date -Iseconds)] rsync $$SOURCE -> $$DEST"
-          if [ -d "$$SOURCE" ]; then
-            rsync -a --delete \
-              --exclude='*.jar' --exclude='cache' --exclude='logs' \
-              "$$SOURCE" "$$DEST" || echo "[$$(date -Iseconds)] rsync failed"
-            find "$$DEST" -mindepth 1 -maxdepth 1 -mtime +"$$PRUNE_DAYS" -exec rm -rf {} +
-          else
-            echo "[$$(date -Iseconds)] source $$SOURCE not present yet, skipping"
-          fi
-          echo "[$$(date -Iseconds)] done, sleeping $${BACKUP_INTERVAL}s"
-          sleep "$$BACKUP_INTERVAL"
-        done
-    networks:
-      - minecraft_network
-    labels:
-      - "com.docker.compose.project=games"
-      - "com.docker.compose.service=minecraft-age-of-fate-backup"
-    restart: unless-stopped
+  # mc-backup:
+  #   image: instrumentisto/rsync-ssh:alpine
+  #   container_name: minecraft-age-of-fate-backup
+  #   depends_on:
+  #     - mc
+  #   environment:
+  #     # Advanced Backups mod handles the actual world snapshotting + RCON pause;
+  #     # this sidecar just mirrors its output off-volume on an interval.
+  #     BACKUP_INTERVAL: "7200"          # seconds between rsync runs (2h)
+  #     PRUNE_DAYS: "7"                  # delete mirrored archives older than N days
+  #     SOURCE: "/data/backups/"         # Advanced Backups output dir inside the world data
+  #     DEST: "/backup/current/"         # rsync mirror destination
+  #   volumes:
+  #     - minecraft_age_of_fate_data:/data:ro
+  #     - minecraft_age_of_fate_backups:/backup
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - |
+  #       set -eu
+  #       mkdir -p "$$DEST"
+  #       while true; do
+  #         echo "[$$(date -Iseconds)] rsync $$SOURCE -> $$DEST"
+  #         if [ -d "$$SOURCE" ]; then
+  #           rsync -a --delete \
+  #             --exclude='*.jar' --exclude='cache' --exclude='logs' \
+  #             "$$SOURCE" "$$DEST" || echo "[$$(date -Iseconds)] rsync failed"
+  #           find "$$DEST" -mindepth 1 -maxdepth 1 -mtime +"$$PRUNE_DAYS" -exec rm -rf {} +
+  #         else
+  #           echo "[$$(date -Iseconds)] source $$SOURCE not present yet, skipping"
+  #         fi
+  #         echo "[$$(date -Iseconds)] done, sleeping $${BACKUP_INTERVAL}s"
+  #         sleep "$$BACKUP_INTERVAL"
+  #       done
+  #   networks:
+  #     - minecraft_network
+  #   labels:
+  #     - "com.docker.compose.project=games"
+  #     - "com.docker.compose.service=minecraft-age-of-fate-backup"
+  #   restart: unless-stopped
 
 networks:
   minecraft_network:
