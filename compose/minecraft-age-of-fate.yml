@@ -42,8 +42,9 @@ services:
       CUSTOM_SERVER_PROPERTIES: |-
         allow-flight=true
         spawn-protection=false
+      SYNC_CHUNK_WRITES: "false"
       RCON_CMDS_STARTUP: |-
-        /spark sampler stop
+        /spark profiler cancel
       #RCON_CMDS_FIRST_CONNECT:
       #RCON_CMDS_LAST_DISCONNECT:
     ports:
