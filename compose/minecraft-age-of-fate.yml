@@ -42,8 +42,6 @@ services:
       CUSTOM_SERVER_PROPERTIES: |-
         allow-flight=true
         spawn-protection=false
-        white-list=true
-        enforce-whitelist=true
       RCON_CMDS_STARTUP: |-
         /spark sampler stop
       #RCON_CMDS_FIRST_CONNECT:
