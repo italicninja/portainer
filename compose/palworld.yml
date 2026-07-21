@@ -30,6 +30,7 @@ services:
       - UPDATE_ON_BOOT=true
       - BACKUP_ENABLED=true
       - BACKUP_CRON_EXPRESSION=0 */6 * * *
+      - PAL_EGG_DEFAULT_HATCHING_TIME=72
       - DELETE_OLD_BACKUPS=true
       - OLD_BACKUP_DAYS=7
       - AUTO_REBOOT_ENABLED=false
