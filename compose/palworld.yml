@@ -27,6 +27,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
 
       PLAYERS: 16
+      SERVER_SETTINGS_MODE: auto
 
       PORT: 8211
       QUERY_PORT: 27015
