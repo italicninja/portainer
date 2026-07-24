@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   palworld:
-    image: ripps818/docker-palworld-dedicated-server-wine:latest
+    image: ghcr.io/ripps818/palworld-dedicated-server-wine:latest
     container_name: palworld-server
 
     restart: unless-stopped
