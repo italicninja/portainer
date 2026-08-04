@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   zomboid-server:
-    image: indifferentbroccoli/projectzomboid-server-docker:latest-release
+    image: faudil/project-zomboid-server:latest
     container_name: zomboid-server
     ports:
       - "16261:16261/udp"
@@ -14,29 +14,30 @@ services:
       - zomboid_config:/home/steam/Zomboid
       - zomboid_server:/home/steam/pz-dedicated
     environment:
-      # User/Group
-      - PUID=1000
-      - PGID=1000
+      # Server Configuration
+      - SERVER_NAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
+      - PUBLIC_NAME=${ZOMBOID_PUBLIC_NAME:-SSF - Horde Night}
 
-      # Admin Configuration
-      - ADMIN_USERNAME=${ZOMBOID_ADMIN_USERNAME:-admin}
+      # Admin/Security
       - ADMIN_PASSWORD=${ZOMBOID_ADMIN_PASSWORD:-changeme}
       - RCON_PASSWORD=${ZOMBOID_RCON_PASSWORD}
 
-      # Server Configuration
-      - SERVER_NAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
-      - DEFAULT_PORT=16261
-      - UDP_PORT=16262
-      - RCON_PORT=27015
+      # Server Settings
       - MAX_PLAYERS=32
+      - MAX_RAM=6144m
 
-      # Memory Configuration
-      - MEMORY_XMX_GB=8
+      # Mods
+      - MOD_WORKSHOP_IDS=3773911887
 
-      # Server Options
-      - STEAM_VAC=true
+      # Updates & Branch
       - UPDATE_ON_START=true
-      - USE_STEAM=true
+      - SERVER_BRANCH=
+
+      # Backups
+      - BACKUP_ENABLED=false
+
+      # Discord Integration (optional)
+      - DISCORD_WEBHOOK_URL=${ZOMBOID_DISCORD_WEBHOOK_URL:-}
     networks:
       - game_network
     deploy:
