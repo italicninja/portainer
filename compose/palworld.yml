@@ -40,8 +40,24 @@ services:
       # Keep automatic updates
       UPDATE_ON_BOOT: "true"
 
+      # Workshop Mods (Steam Workshop)
+      WORKSHOP_MOD_IDS: ${WORKSHOP_MOD_IDS}
+      WORKSHOP_MOD_UPDATE_CRON: "0 */6 * * *"
+      WORKSHOP_MODS_DEBUG: "false"
+
+      # Steam Authentication (required for paid Workshop content)
+      STEAM_USERNAME: ${STEAM_USERNAME}
+      STEAM_PASSWORD: ${STEAM_PASSWORD}
+
+      # UE4SS Experimental Framework
+      INSTALL_UE4SS_EXPERIMENTAL: "true"
+
+      # Client Mods
+      ALLOW_CLIENT_MOD: "true"
+
     volumes:
       - /data/palworld:/palworld
+      - ./steam_cache:/home/steam/Steam/
 
     networks:
       - game_network
