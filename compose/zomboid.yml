@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   zomboid-server:
-    image: danixu86/project-zomboid-dedicated-server:latest-release
+    image: indifferentbroccoli/projectzomboid-server-docker:latest-release
     container_name: zomboid-server
     ports:
       - "16261:16261/udp"
@@ -14,38 +14,29 @@ services:
       - zomboid_config:/home/steam/Zomboid
       - zomboid_server:/home/steam/pz-dedicated
     environment:
-      # Stable Build
-      - STEAMAPPBRANCH=public
-      - STEAMAPPVALIDATE=true
-      
-      # Admin Configuration
-      - ADMINUSERNAME=${ZOMBOID_ADMIN_USERNAME:-admin}
-      - ADMINPASSWORD=${ZOMBOID_ADMIN_PASSWORD:-changeme}
-      
-      # Server Configuration
-      - SERVERNAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
-      - DISPLAYNAME=SSF - Horde Night
-      - PASSWORD=${ZOMBOID_SERVER_PASSWORD:-}
-      - RCONPASSWORD=${ZOMBOID_RCON_PASSWORD}
-      
-      # Server Settings
-      - PUBLIC=true
-      - STEAMVAC=true
-      - SERVERPRESET=Apocalypse
-      - PORT=16261
-      - MEMORY=${ZOMBOID_MEMORY:-6144m}
-      
-      # Workshop Mods (disabled)
-      - WORKSHOP_IDS="3773911887"
-      - MOD_IDS=""
+      # User/Group
+      - PUID=1000
+      - PGID=1000
 
-      # Performance & Updates
-      - FORCEUPDATE=false
-      - FORCESTEAMCLIENTSOUPDATE=false
-      
-      # Localization
-      - LANG=en_EN.UTF-8
-      - TZ=America/Vancouver
+      # Admin Configuration
+      - ADMIN_USERNAME=${ZOMBOID_ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ZOMBOID_ADMIN_PASSWORD:-changeme}
+      - RCON_PASSWORD=${ZOMBOID_RCON_PASSWORD}
+
+      # Server Configuration
+      - SERVER_NAME=${ZOMBOID_SERVER_NAME:-SSF-HordeNight}
+      - DEFAULT_PORT=16261
+      - UDP_PORT=16262
+      - RCON_PORT=27015
+      - MAX_PLAYERS=32
+
+      # Memory Configuration
+      - MEMORY_XMX_GB=8
+
+      # Server Options
+      - STEAM_VAC=true
+      - UPDATE_ON_START=true
+      - USE_STEAM=true
     networks:
       - game_network
     deploy:
