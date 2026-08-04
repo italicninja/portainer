@@ -36,8 +36,8 @@ services:
       - MEMORY=${ZOMBOID_MEMORY:-6144m}
       
       # Workshop Mods (disabled)
-      - WORKSHOP_IDS=""
-      - MOD_IDS="ThisIsYourLife"
+      - WORKSHOP_IDS="3773911887"
+      - MOD_IDS=""
 
       # Performance & Updates
       - FORCEUPDATE=false
