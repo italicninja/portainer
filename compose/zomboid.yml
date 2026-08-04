@@ -37,7 +37,7 @@ services:
       
       # Workshop Mods (disabled)
       - WORKSHOP_IDS=""
-      - MOD_IDS=""
+      - MOD_IDS="ThisIsYourLife"
 
       # Performance & Updates
       - FORCEUPDATE=false
